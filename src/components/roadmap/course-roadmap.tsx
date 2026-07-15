@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -116,11 +116,11 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadma
       filteredNodes.map((node, index) => ({
         id: node.id,
         type: "roadmapNode",
-        position: { x: 400, y: index * 180 },
-        data: { ...node, selected: node.id === selectedId },
+        position: { x: 0, y: index * 160 },
+        data: { ...node, selected: false },
         draggable: true,
       })),
-    [filteredNodes, selectedId]
+    [filteredNodes]
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -139,6 +139,13 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadma
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Keep the canvas in sync when the filter changes (otherwise the buttons do nothing).
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    setSelectedId(null);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
+
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       const nodeData = node.data as RoadmapNodeData;
@@ -156,7 +163,7 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadma
   );
 
   return (
-    <div className="h-[calc(100vh-200px)] w-full rounded-xl border border-zinc-800 bg-zinc-950">
+    <div className="h-full w-full rounded-xl border border-zinc-800 bg-zinc-950">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -164,9 +171,11 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadma
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
-        fitView
-        minZoom={0.3}
+        defaultViewport={{ x: 90, y: 72, zoom: 0.85 }}
+        minZoom={0.2}
         maxZoom={1.5}
+        panOnScroll
+        zoomOnScroll={false}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#27272a" gap={20} />
