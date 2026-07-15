@@ -1,12 +1,15 @@
 import { getAllCourses } from "@/lib/data";
+import { getSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
+import { CreateCourseButton } from "@/components/courses/create-course";
 import { BookOpen, Users, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default async function CoursesPage() {
+  const session = await getSession();
   const allCourses = await getAllCourses();
 
   return (
@@ -16,7 +19,7 @@ export default async function CoursesPage() {
           <h2 className="text-2xl font-bold text-zinc-100">Courses</h2>
           <p className="text-zinc-400">Manage and explore courses</p>
         </div>
-        <Button>Create Course</Button>
+        {(session?.role === "admin" || session?.role === "trainer") && <CreateCourseButton />}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

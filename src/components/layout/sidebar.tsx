@@ -20,13 +20,13 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
-  Bell,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/constants";
 import type { SessionUser } from "@/lib/auth";
 import { useState } from "react";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -116,10 +116,7 @@ export function Header({ user }: { user: SessionUser }) {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500" />
-        </button>
+        <NotificationBell />
 
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-violet-400 text-sm font-bold text-white">

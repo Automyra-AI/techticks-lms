@@ -18,18 +18,21 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "admin" && session.role !== "trainer")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();
+  if (!body.title || !body.description) {
+    return NextResponse.json({ error: "Title and description are required" }, { status: 400 });
+  }
   const id = crypto.randomUUID();
 
   await db.insert(courses).values({
     id,
     title: body.title,
     description: body.description,
-    trainerId: body.trainerId,
+    trainerId: body.trainerId ?? (session.role === "trainer" ? session.id : null),
     status: "published",
     price: body.price ?? 0,
     createdAt: new Date().toISOString(),

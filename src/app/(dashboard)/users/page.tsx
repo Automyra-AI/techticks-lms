@@ -1,8 +1,7 @@
 import { getUsers } from "@/lib/data";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus, Mail, GitBranch } from "lucide-react";
+import { AddUserButton, EditUserButton } from "@/components/users/user-actions";
+import { Mail, GitBranch } from "lucide-react";
 
 export default async function UsersPage() {
   const allUsers = await getUsers();
@@ -14,9 +13,7 @@ export default async function UsersPage() {
           <h2 className="text-2xl font-bold text-zinc-100">Users</h2>
           <p className="text-zinc-400">Manage admins, trainers, and students</p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4" /> Add User
-        </Button>
+        <AddUserButton />
       </div>
 
       <div className="overflow-hidden rounded-xl border border-zinc-800">
@@ -59,7 +56,7 @@ export default async function UsersPage() {
                   )}
                 </td>
                 <td className="p-4">
-                  <Button variant="ghost" size="sm">Edit</Button>
+                  <EditUserButton user={user} />
                 </td>
               </tr>
             ))}

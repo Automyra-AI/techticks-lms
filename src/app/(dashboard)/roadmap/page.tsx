@@ -15,6 +15,10 @@ export default async function RoadmapPage() {
     prerequisites: node.prerequisites ?? undefined,
     completionPercent:
       node.status === "completed" ? 100 : node.status === "in_progress" ? 45 : 0,
+    videoUrl: node.videoUrl ?? undefined,
+    githubUrl: node.githubUrl ?? undefined,
+    slidesUrl: node.slidesUrl ?? undefined,
+    notes: node.notes ?? undefined,
   }));
 
   return <RoadmapClient nodes={roadmapData} />;

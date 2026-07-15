@@ -1,7 +1,7 @@
 import { getAnnouncements } from "@/lib/data";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Megaphone, Plus } from "lucide-react";
+import { CreateAnnouncementButton } from "@/components/announcements/create-announcement";
+import { Megaphone } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { getSession } from "@/lib/auth";
 
@@ -16,11 +16,7 @@ export default async function AnnouncementsPage() {
           <h2 className="text-2xl font-bold text-zinc-100">Announcements</h2>
           <p className="text-zinc-400">Course updates and important notices</p>
         </div>
-        {(session?.role === "admin" || session?.role === "trainer") && (
-          <Button>
-            <Plus className="h-4 w-4" /> New Announcement
-          </Button>
-        )}
+        {(session?.role === "admin" || session?.role === "trainer") && <CreateAnnouncementButton />}
       </div>
 
       <div className="space-y-4">

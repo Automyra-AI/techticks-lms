@@ -1,12 +1,14 @@
-import { getAllAssignments } from "@/lib/data";
+import { getAllAssignments, getStudentSubmissions } from "@/lib/data";
 import { getSession } from "@/lib/auth";
 import { AssignmentCard } from "@/components/shared/content-panels";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { CreateAssignmentButton, SubmitAssignmentButton } from "@/components/assignments/assignment-actions";
 
 export default async function AssignmentsPage() {
   const session = await getSession();
   const allAssignments = await getAllAssignments();
+  const isStaff = session?.role === "admin" || session?.role === "trainer";
+  const submissions = session?.role === "student" ? await getStudentSubmissions(session.id) : [];
+  const submissionByAssignment = new Map(submissions.map((s) => [s.assignmentId, s]));
 
   return (
     <div className="space-y-6">
@@ -15,29 +17,34 @@ export default async function AssignmentsPage() {
           <h2 className="text-2xl font-bold text-zinc-100">Assignments</h2>
           <p className="text-zinc-400">Track submissions, grades, and feedback</p>
         </div>
-        {(session?.role === "admin" || session?.role === "trainer") && (
-          <Button>
-            <Plus className="h-4 w-4" /> Create Assignment
-          </Button>
-        )}
+        {isStaff && <CreateAssignmentButton />}
       </div>
 
       <div className="grid gap-4">
-        {allAssignments.map((assignment) => (
-          <AssignmentCard
-            key={assignment.id}
-            assignment={{
-              id: assignment.id,
-              title: assignment.title,
-              description: assignment.description ?? undefined,
-              dueDate: assignment.dueDate ?? undefined,
-              maxMarks: assignment.maxMarks ?? 100,
-              difficulty: assignment.difficulty ?? "medium",
-              status: session?.role === "student" ? "revision_needed" : undefined,
-              marks: session?.role === "student" ? 70 : undefined,
-            }}
-          />
-        ))}
+        {allAssignments.map((assignment) => {
+          const sub = submissionByAssignment.get(assignment.id);
+          return (
+            <div key={assignment.id} className="space-y-2">
+              <AssignmentCard
+                assignment={{
+                  id: assignment.id,
+                  title: assignment.title,
+                  description: assignment.description ?? undefined,
+                  dueDate: assignment.dueDate ?? undefined,
+                  maxMarks: assignment.maxMarks ?? 100,
+                  difficulty: assignment.difficulty ?? "medium",
+                  status: sub?.status ?? undefined,
+                  marks: sub?.marks ?? undefined,
+                }}
+              />
+              {session?.role === "student" && (
+                <div className="flex justify-end">
+                  <SubmitAssignmentButton assignmentId={assignment.id} title={assignment.title} />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

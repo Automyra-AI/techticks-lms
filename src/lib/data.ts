@@ -131,6 +131,11 @@ export async function getUsers(role?: "admin" | "trainer" | "student") {
   return db.select().from(users);
 }
 
+export async function getUserById(userId: string) {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return user ?? null;
+}
+
 export async function getNotifications(userId: string) {
   return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt));
 }

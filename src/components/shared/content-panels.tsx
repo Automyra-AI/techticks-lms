@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -15,6 +17,30 @@ export function NodeDetailPanel({
   node: RoadmapNodeData | null;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  function openLink(url?: string, label?: string) {
+    if (!url || url === "#") {
+      alert(`No ${label ?? "resource"} attached to this topic yet.`);
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function markComplete() {
+    if (!node) return;
+    setBusy(true);
+    await fetch("/api/nodes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: node.id, status: "completed" }),
+    });
+    setBusy(false);
+    router.refresh();
+    onClose();
+  }
+
   if (!node) {
     return (
       <Card className="h-full">
@@ -69,20 +95,34 @@ export function NodeDetailPanel({
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-zinc-300">Resources</h4>
           <div className="grid gap-2">
-            <Button variant="secondary" className="justify-start">
+            <Button
+              variant="secondary"
+              className="justify-start"
+              onClick={() => openLink(node.notes ?? node.slidesUrl, "notes")}
+            >
               <FileText className="h-4 w-4" /> View Notes
             </Button>
-            <Button variant="secondary" className="justify-start">
+            <Button
+              variant="secondary"
+              className="justify-start"
+              onClick={() => openLink(node.videoUrl, "video")}
+            >
               <ExternalLink className="h-4 w-4" /> Watch Video
             </Button>
-            <Button variant="secondary" className="justify-start">
+            <Button
+              variant="secondary"
+              className="justify-start"
+              onClick={() => openLink(node.githubUrl, "GitHub repository")}
+            >
               <GitBranch className="h-4 w-4" /> GitHub Repository
             </Button>
           </div>
         </div>
 
         {node.status !== "completed" && node.status !== "locked" && (
-          <Button className="w-full">Mark as Complete</Button>
+          <Button className="w-full" onClick={markComplete} disabled={busy}>
+            {busy ? "Saving…" : "Mark as Complete"}
+          </Button>
         )}
       </CardContent>
     </Card>

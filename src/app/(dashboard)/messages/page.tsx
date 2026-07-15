@@ -12,9 +12,28 @@ const mockMessages = [
   { id: "3", sender: "Course Discussion", role: "Group", content: "Anyone stuck on REST APIs?", time: "2d ago", unread: false },
 ];
 
+type ChatMessage = { text: string; time: string; mine: boolean };
+
 export default function MessagesPage() {
   const [selected, setSelected] = useState(mockMessages[0]);
   const [message, setMessage] = useState("");
+  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>(() =>
+    Object.fromEntries(
+      mockMessages.map((m) => [m.id, [{ text: m.content, time: m.time, mine: false }]])
+    )
+  );
+
+  function send() {
+    const text = message.trim();
+    if (!text) return;
+    setThreads((prev) => ({
+      ...prev,
+      [selected.id]: [...(prev[selected.id] ?? []), { text, time: "now", mine: true }],
+    }));
+    setMessage("");
+  }
+
+  const conversation = threads[selected.id] ?? [];
 
   return (
     <div className="space-y-6">
@@ -53,22 +72,35 @@ export default function MessagesPage() {
             </div>
 
             <div className="flex-1 space-y-4 overflow-y-auto">
-              <div className="max-w-[80%] rounded-lg bg-zinc-800 p-3">
-                <p className="text-sm text-zinc-200">{selected.content}</p>
-                <p className="mt-1 text-xs text-zinc-500">{selected.time}</p>
-              </div>
+              {conversation.map((m, i) => (
+                <div
+                  key={i}
+                  className={`max-w-[80%] rounded-lg p-3 ${
+                    m.mine ? "ml-auto bg-violet-600/30" : "bg-zinc-800"
+                  }`}
+                >
+                  <p className="text-sm text-zinc-200">{m.text}</p>
+                  <p className="mt-1 text-xs text-zinc-500">{m.time}</p>
+                </div>
+              ))}
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <form
+              className="mt-4 flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                send();
+              }}
+            >
               <Input
                 placeholder="Type a message..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
-              <Button>
+              <Button type="submit">
                 <Send className="h-4 w-4" />
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
       </div>

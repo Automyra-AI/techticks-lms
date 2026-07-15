@@ -30,6 +30,10 @@ export interface RoadmapNodeData {
   status: NodeStatus;
   prerequisites?: string;
   completionPercent?: number;
+  videoUrl?: string;
+  githubUrl?: string;
+  slidesUrl?: string;
+  notes?: string;
 }
 
 export interface QuizQuestion {

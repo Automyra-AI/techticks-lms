@@ -153,9 +153,11 @@ export function DashboardClient({ stats, role, chartData, activities }: Dashboar
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Activity</CardTitle>
-          <Button variant="ghost" size="sm">
-            View All <ArrowRight className="h-4 w-4" />
-          </Button>
+          <Link href="/announcements">
+            <Button variant="ghost" size="sm">
+              View All <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
