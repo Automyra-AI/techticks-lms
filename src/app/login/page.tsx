@@ -107,16 +107,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-            <p className="text-xs font-medium text-zinc-400">Demo Accounts (password: password123)</p>
-            <div className="mt-2 space-y-1 text-xs text-zinc-500">
-              <p>Admin: admin@techticks.com</p>
-              <p>Trainer: trainer@techticks.com</p>
-              <p>Student: student@techticks.com</p>
-            </div>
-          </div>
-
-          <p className="mt-4 text-center text-sm text-zinc-500">
+          <p className="mt-6 text-center text-sm text-zinc-500">
             <Link href="/" className="text-violet-400 hover:underline">
               ← Back to home
             </Link>

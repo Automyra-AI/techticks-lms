@@ -11,7 +11,6 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Quizzes", href: "/quizzes", icon: "HelpCircle", roles: ["admin", "trainer", "student"] },
   { title: "Announcements", href: "/announcements", icon: "Megaphone", roles: ["admin", "trainer", "student"] },
   { title: "Calendar", href: "/calendar", icon: "Calendar", roles: ["admin", "trainer", "student"] },
-  { title: "Messages", href: "/messages", icon: "MessageSquare", roles: ["admin", "trainer", "student"] },
   { title: "Certificates", href: "/certificates", icon: "GraduationCap", roles: ["admin", "trainer", "student"] },
   { title: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["admin", "trainer"] },
   { title: "Users", href: "/users", icon: "Users", roles: ["admin"] },
