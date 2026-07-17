@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const [stats, chartData, activities, progress] = await Promise.all([
     getDashboardStats(session),
     getChartData(),
-    getRecentActivities(),
+    getRecentActivities(session),
     session.role === "student"
       ? getStudentProgressBreakdown(session.id)
       : Promise.resolve(null),

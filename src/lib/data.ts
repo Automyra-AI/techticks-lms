@@ -499,11 +499,20 @@ export async function getQuizzesForStudent(studentId: string) {
 const rel = (iso?: string | null) =>
   iso ? formatDistanceToNow(new Date(iso), { addSuffix: true }) : "";
 
-/** Recent real events across submissions, enrollments, and announcements. */
-export async function getRecentActivities() {
+/**
+ * Recent events. Staff see activity across all students; a student sees ONLY
+ * their own submissions/enrollments (plus course-wide announcements) — never
+ * another student's data.
+ */
+export async function getRecentActivities(user?: { id: string; role: string }) {
+  const isStudent = user?.role === "student";
   const [subRows, enrollRows, annRows, userRows, assignmentRows] = await Promise.all([
-    db.select().from(submissions).orderBy(desc(submissions.submittedAt)).limit(5),
-    db.select().from(enrollments).orderBy(desc(enrollments.enrolledAt)).limit(5),
+    isStudent
+      ? db.select().from(submissions).where(eq(submissions.studentId, user!.id)).orderBy(desc(submissions.submittedAt)).limit(5)
+      : db.select().from(submissions).orderBy(desc(submissions.submittedAt)).limit(5),
+    isStudent
+      ? db.select().from(enrollments).where(eq(enrollments.userId, user!.id)).orderBy(desc(enrollments.enrolledAt)).limit(5)
+      : db.select().from(enrollments).orderBy(desc(enrollments.enrolledAt)).limit(5),
     db.select().from(announcements).orderBy(desc(announcements.createdAt)).limit(5),
     db.select().from(users),
     db.select().from(assignments),
