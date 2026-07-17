@@ -17,6 +17,7 @@ import {
   BarChart3,
   Users,
   Settings,
+  HelpCircle,
   Zap,
   ChevronLeft,
   ChevronRight,
@@ -43,6 +44,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BarChart3,
   Users,
   Settings,
+  HelpCircle,
 };
 
 export function Sidebar({ user }: { user: SessionUser }) {

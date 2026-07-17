@@ -141,6 +141,10 @@ export function AssignmentCard({
     difficulty: string;
     status?: string;
     marks?: number;
+    submissionFormat?: string;
+    driveUrl?: string;
+    fileUrl?: string;
+    fileName?: string;
   };
 }) {
   return (
@@ -165,8 +169,39 @@ export function AssignmentCard({
           )}
           <span>Max Marks: {assignment.maxMarks}</span>
           <span className="capitalize">{assignment.difficulty}</span>
+          {assignment.submissionFormat && (
+            <span className="flex items-center gap-1 text-zinc-400">
+              <FileText className="h-3 w-3" />
+              Submit via: {assignment.submissionFormat}
+            </span>
+          )}
           {assignment.marks !== undefined && (
             <span className="text-violet-400">Score: {assignment.marks}/{assignment.maxMarks}</span>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          {assignment.fileUrl && (
+            <a
+              href={assignment.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-400 hover:text-sky-300"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {assignment.fileName ? `View file: ${assignment.fileName}` : "View assignment file"}
+            </a>
+          )}
+          {assignment.driveUrl && (
+            <a
+              href={assignment.driveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-400 hover:text-violet-300"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              View submitted Drive link
+            </a>
           )}
         </div>
       </CardContent>

@@ -33,9 +33,10 @@ interface DashboardClientProps {
     weeklyAttendance: { week: string; attendance: number }[];
   };
   activities: { id: string; action: string; time: string; type: string }[];
+  progress?: { overall: number; weekProgress: { week: string; progress: number }[] } | null;
 }
 
-export function DashboardClient({ stats, role, chartData, activities }: DashboardClientProps) {
+export function DashboardClient({ stats, role, chartData, activities, progress }: DashboardClientProps) {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -54,28 +55,26 @@ export function DashboardClient({ stats, role, chartData, activities }: Dashboar
 
       <StatsGrid stats={stats} />
 
-      {role === "student" && (
+      {role === "student" && progress && (
         <Card>
           <CardHeader>
             <CardTitle>Course Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProgressBar value={72} size="lg" />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {[
-                { week: "Week 1", progress: 100 },
-                { week: "Week 2", progress: 80 },
-                { week: "Week 3", progress: 30 },
-              ].map((w) => (
-                <div key={w.week}>
-                  <div className="mb-1 flex justify-between text-xs">
-                    <span className="text-zinc-400">{w.week}</span>
-                    <span className="text-zinc-300">{w.progress}%</span>
+            <ProgressBar value={progress.overall} size="lg" />
+            {progress.weekProgress.length > 0 && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {progress.weekProgress.map((w) => (
+                  <div key={w.week}>
+                    <div className="mb-1 flex justify-between text-xs">
+                      <span className="truncate text-zinc-400">{w.week}</span>
+                      <span className="text-zinc-300">{w.progress}%</span>
+                    </div>
+                    <ProgressBar value={w.progress} showLabel={false} size="sm" />
                   </div>
-                  <ProgressBar value={w.progress} showLabel={false} size="sm" />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

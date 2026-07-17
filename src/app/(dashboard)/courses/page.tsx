@@ -1,16 +1,18 @@
-import { getAllCourses } from "@/lib/data";
+import { getCoursesWithStats } from "@/lib/data";
 import { getSession } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
 import { CreateCourseButton } from "@/components/courses/create-course";
-import { BookOpen, Users, Clock } from "lucide-react";
+import { CourseActions } from "@/components/courses/course-actions";
+import { BookOpen, Users, BookMarked } from "lucide-react";
 import Link from "next/link";
 
 export default async function CoursesPage() {
   const session = await getSession();
-  const allCourses = await getAllCourses();
+  const allCourses = await getCoursesWithStats();
+  const isStaff = session?.role === "admin" || session?.role === "trainer";
 
   return (
     <div className="space-y-6">
@@ -39,18 +41,23 @@ export default async function CoursesPage() {
               </div>
               <div className="mt-4 flex items-center gap-4 text-xs text-zinc-500">
                 <span className="flex items-center gap-1">
-                  <Users className="h-3 w-3" /> 24 students
+                  <Users className="h-3 w-3" /> {course.students} {course.students === 1 ? "student" : "students"}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> 12 weeks
+                  <BookMarked className="h-3 w-3" /> {course.lessons} {course.lessons === 1 ? "lesson" : "lessons"}
                 </span>
               </div>
-              <ProgressBar value={72} className="mt-4" />
+              <ProgressBar value={course.progress} className="mt-4" />
               <Link href="/roadmap">
                 <Button variant="secondary" className="mt-4 w-full">
                   View Roadmap
                 </Button>
               </Link>
+              {isStaff && (
+                <div className="mt-3">
+                  <CourseActions course={course} />
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

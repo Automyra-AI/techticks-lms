@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,9 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -32,9 +36,11 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // Portal to <body> so ancestor transforms/filters (e.g. a card's
+  // backdrop-blur) can't turn this fixed overlay into a clipped, mis-anchored box.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -65,6 +71,7 @@ export function Modal({
         </div>
         <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

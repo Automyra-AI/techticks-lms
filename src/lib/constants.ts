@@ -8,6 +8,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Resources", href: "/resources", icon: "FolderOpen", roles: ["admin", "trainer", "student"] },
   { title: "Attendance", href: "/attendance", icon: "UserCheck", roles: ["admin", "trainer", "student"] },
   { title: "Grades", href: "/grades", icon: "Award", roles: ["admin", "trainer", "student"] },
+  { title: "Quizzes", href: "/quizzes", icon: "HelpCircle", roles: ["admin", "trainer", "student"] },
   { title: "Announcements", href: "/announcements", icon: "Megaphone", roles: ["admin", "trainer", "student"] },
   { title: "Calendar", href: "/calendar", icon: "Calendar", roles: ["admin", "trainer", "student"] },
   { title: "Messages", href: "/messages", icon: "MessageSquare", roles: ["admin", "trainer", "student"] },

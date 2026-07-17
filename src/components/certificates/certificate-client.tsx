@@ -5,20 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GraduationCap, Download, Share2, CheckCircle2 } from "lucide-react";
 
-const requirements = [
-  { label: "90% Attendance", met: true },
-  { label: "Assignments Completed", met: true },
-  { label: "Final Project Approved", met: false },
-  { label: "Quiz Passed", met: true },
-];
+type Requirement = { label: string; met: boolean; detail?: string };
 
 const COURSE = "AI Automation Mastery";
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   (typeof window !== "undefined" ? window.location.origin : "https://techticks.academy");
 
-export function CertificateClient({ studentName }: { studentName: string }) {
-  const allMet = requirements.every((r) => r.met);
+export function CertificateClient({
+  studentName,
+  requirements,
+  allMet,
+}: {
+  studentName: string;
+  requirements: Requirement[];
+  allMet: boolean;
+}) {
   const issuedOn = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   function downloadCertificate() {
@@ -79,28 +81,35 @@ export function CertificateClient({ studentName }: { studentName: string }) {
             <p className="mt-2 text-zinc-400">Complete all requirements to unlock your certificate</p>
 
             <div className="mt-8 space-y-3 text-left">
-              {requirements.map((req) => (
-                <div key={req.label} className="flex items-center gap-3 rounded-lg border border-zinc-800 p-3">
-                  <CheckCircle2 className={`h-5 w-5 ${req.met ? "text-emerald-400" : "text-zinc-600"}`} />
-                  <span className={req.met ? "text-zinc-200" : "text-zinc-500"}>{req.label}</span>
-                  <Badge variant={req.met ? "success" : "default"} className="ml-auto">
-                    {req.met ? "Done" : "Pending"}
-                  </Badge>
-                </div>
-              ))}
+              {requirements.length === 0 ? (
+                <p className="py-4 text-center text-sm text-zinc-500">No certificate progress to show.</p>
+              ) : (
+                requirements.map((req) => (
+                  <div key={req.label} className="flex items-center gap-3 rounded-lg border border-zinc-800 p-3">
+                    <CheckCircle2 className={`h-5 w-5 shrink-0 ${req.met ? "text-emerald-400" : "text-zinc-600"}`} />
+                    <div className="min-w-0">
+                      <span className={req.met ? "text-zinc-200" : "text-zinc-500"}>{req.label}</span>
+                      {req.detail && <span className="ml-2 text-xs text-zinc-500">({req.detail})</span>}
+                    </div>
+                    <Badge variant={req.met ? "success" : "default"} className="ml-auto shrink-0">
+                      {req.met ? "Done" : "Pending"}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </div>
 
-            {!allMet && (
-              <p className="mt-4 text-xs text-amber-400">
-                A preview certificate is available now; the verified version unlocks once all requirements are met.
-              </p>
-            )}
+            <p className="mt-4 text-xs text-amber-400">
+              {allMet
+                ? "All requirements met — your verified certificate is ready to download."
+                : "The certificate unlocks once every requirement above is met."}
+            </p>
 
             <div className="mt-8 flex justify-center gap-3">
-              <Button onClick={downloadCertificate}>
+              <Button onClick={downloadCertificate} disabled={!allMet}>
                 <Download className="h-4 w-4" /> Download PDF
               </Button>
-              <Button variant="secondary" onClick={shareOnLinkedIn}>
+              <Button variant="secondary" onClick={shareOnLinkedIn} disabled={!allMet}>
                 <Share2 className="h-4 w-4" /> Share on LinkedIn
               </Button>
             </div>
