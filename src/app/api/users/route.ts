@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, courses, enrollments } from "@/lib/db/schema";
 import { getSession, hashPassword } from "@/lib/auth";
 
 export async function GET() {
@@ -40,6 +40,21 @@ export async function POST(request: Request) {
     github: body.github ?? null,
     createdAt: new Date().toISOString(),
   });
+
+  if (body.role === "student") {
+    const publishedCourses = await db.select().from(courses).where(eq(courses.status, "published"));
+    if (publishedCourses.length > 0) {
+      await db.insert(enrollments).values(
+        publishedCourses.map((course) => ({
+          id: crypto.randomUUID(),
+          userId: id,
+          courseId: course.id,
+          progress: 0,
+          enrolledAt: new Date().toISOString(),
+        }))
+      );
+    }
+  }
 
   const [{ password: _pw, ...user }] = await db.select().from(users).where(eq(users.id, id));
   return NextResponse.json({ user });
