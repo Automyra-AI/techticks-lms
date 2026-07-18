@@ -15,6 +15,7 @@ export default async function ResourcesPage() {
         category: r.category,
         url: r.url,
         fileType: r.fileType,
+        description: r.description ?? "",
       }))}
       canAdd={canAdd}
     />

@@ -39,3 +39,38 @@ export async function POST(request: Request) {
   const [resource] = await db.select().from(resources).where(eq(resources.id, id));
   return NextResponse.json({ resource });
 }
+
+export async function PATCH(request: Request) {
+  const session = await getSession();
+  if (!session || (session.role !== "admin" && session.role !== "trainer")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const body = await request.json();
+  if (!body.id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+  const updates: Record<string, unknown> = {};
+  for (const field of ["title", "description", "category", "url", "fileType"] as const) {
+    if (body[field] !== undefined) updates[field] = body[field];
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  await db.update(resources).set(updates).where(eq(resources.id, body.id));
+  const [resource] = await db.select().from(resources).where(eq(resources.id, body.id));
+  return NextResponse.json({ resource });
+}
+
+export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session || (session.role !== "admin" && session.role !== "trainer")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+
+  await db.delete(resources).where(eq(resources.id, id));
+  return NextResponse.json({ ok: true });
+}

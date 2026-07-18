@@ -15,10 +15,12 @@ import {
   announcements,
   weeklyRemarks,
   quizzes,
+  quizAttempts,
   certificates,
   lessonProgress,
 } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
+import { buildRoadmapNodes } from "@/lib/db/default-roadmap";
 
 export async function GET() {
   const session = await getSession();
@@ -64,6 +66,8 @@ export async function POST(request: Request) {
       price: body.price ?? 0,
       createdAt: new Date().toISOString(),
     });
+    // Give every new course the default AI Automation roadmap so it isn't empty.
+    await db.insert(roadmapNodes).values(buildRoadmapNodes(id));
   } catch {
     return NextResponse.json({ error: "Could not create course. Please try again." }, { status: 500 });
   }
@@ -110,6 +114,16 @@ export async function DELETE(request: Request) {
   const assignmentIds = (await db.select({ id: assignments.id }).from(assignments).where(eq(assignments.courseId, id))).map((a) => a.id);
   const sessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.courseId, id))).map((s) => s.id);
   const weekIds = (await db.select({ id: weeks.id }).from(weeks).where(eq(weeks.courseId, id))).map((w) => w.id);
+
+  // Quiz attempts reference quizzes, so remove them before the quizzes.
+  const courseQuizIds = (
+    await db.select({ id: quizzes.id }).from(quizzes).where(eq(quizzes.courseId, id))
+  ).map((q) => q.id);
+  const nodeQuizIds = nodeIds.length
+    ? (await db.select({ id: quizzes.id }).from(quizzes).where(inArray(quizzes.nodeId, nodeIds))).map((q) => q.id)
+    : [];
+  const quizIds = [...new Set([...courseQuizIds, ...nodeQuizIds])];
+  if (quizIds.length) await db.delete(quizAttempts).where(inArray(quizAttempts.quizId, quizIds));
 
   if (assignmentIds.length) await db.delete(submissions).where(inArray(submissions.assignmentId, assignmentIds));
   if (sessionIds.length) await db.delete(attendance).where(inArray(attendance.sessionId, sessionIds));

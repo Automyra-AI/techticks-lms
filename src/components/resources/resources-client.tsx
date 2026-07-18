@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input, Textarea, Label, Select } from "@/components/ui/input";
-import { FileText, Video, Link2, GitBranch, Download, Sparkles, Plus } from "lucide-react";
+import { FileText, Video, Link2, GitBranch, Download, Sparkles, Plus, Pencil, Trash2 } from "lucide-react";
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   videos: Video,
@@ -29,15 +29,20 @@ type Resource = {
   category: string;
   url: string;
   fileType?: string | null;
+  description?: string | null;
 };
+
+const emptyForm = { title: "", category: "links", url: "", description: "" };
 
 export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; canAdd: boolean }) {
   const router = useRouter();
   const [filter, setFilter] = useState("all");
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Resource | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", category: "links", url: "", description: "" });
+  const [form, setForm] = useState(emptyForm);
 
   const filtered = useMemo(
     () => (filter === "all" ? resources : resources.filter((r) => r.category === filter)),
@@ -52,23 +57,53 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
     window.open(resource.url, "_blank", "noopener,noreferrer");
   }
 
+  function openAdd() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setError(null);
+    setOpen(true);
+  }
+
+  function openEdit(r: Resource) {
+    setEditingId(r.id);
+    setForm({ title: r.title, category: r.category, url: r.url, description: r.description ?? "" });
+    setError(null);
+    setOpen(true);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     const res = await fetch("/api/resources", {
-      method: "POST",
+      method: editingId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(editingId ? { id: editingId, ...form } : form),
     });
     setBusy(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Failed to add resource");
+      setError(data.error ?? "Failed to save resource");
       return;
     }
     setOpen(false);
-    setForm({ title: "", category: "links", url: "", description: "" });
+    setForm(emptyForm);
+    setEditingId(null);
+    router.refresh();
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    setError(null);
+    const res = await fetch(`/api/resources?id=${deleting.id}`, { method: "DELETE" });
+    setBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Failed to delete");
+      return;
+    }
+    setDeleting(null);
     router.refresh();
   }
 
@@ -80,7 +115,7 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
           <p className="text-zinc-400">Videos, PDFs, templates, prompts, and more</p>
         </div>
         {canAdd && (
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={openAdd}>
             <Plus className="h-4 w-4" /> Add Resource
           </Button>
         )}
@@ -113,6 +148,16 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
                     <h3 className="font-medium text-zinc-100">{resource.title}</h3>
                     <Badge className="mt-2 capitalize">{resource.category}</Badge>
                   </div>
+                  {canAdd && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-zinc-100" title="Edit resource" aria-label="Edit resource" onClick={() => openEdit(resource)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-red-400" title="Delete resource" aria-label="Delete resource" onClick={() => setDeleting(resource)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <Button variant="secondary" size="sm" className="mt-4 w-full" onClick={() => download(resource)}>
                   <Download className="h-4 w-4" /> Open
@@ -126,7 +171,7 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
         )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Add Resource" description="Share a link, file, or template">
+      <Modal open={open} onClose={() => setOpen(false)} title={editingId ? "Edit Resource" : "Add Resource"} description="Share a link, file, or template">
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
             <Label>Title</Label>
@@ -151,9 +196,20 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={busy}>{busy ? "Adding…" : "Add Resource"}</Button>
+            <Button type="submit" disabled={busy}>{busy ? "Saving…" : editingId ? "Save Changes" : "Add Resource"}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal open={!!deleting} onClose={() => setDeleting(null)} title="Delete Resource" description={deleting?.title ?? ""}>
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-400">This removes the resource for everyone. This cannot be undone.</p>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
+            <Button type="button" onClick={confirmDelete} disabled={busy} className="bg-red-600 hover:bg-red-500">{busy ? "Deleting…" : "Delete"}</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
