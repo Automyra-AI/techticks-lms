@@ -1,9 +1,11 @@
 import { getUsers } from "@/lib/data";
+import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
-import { AddUserButton, EditUserButton } from "@/components/users/user-actions";
+import { AddUserButton, DeleteUserButton, EditUserButton } from "@/components/users/user-actions";
 import { Mail, GitBranch } from "lucide-react";
 
 export default async function UsersPage() {
+  const session = await getSession();
   const allUsers = await getUsers();
 
   return (
@@ -16,7 +18,7 @@ export default async function UsersPage() {
         <AddUserButton />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-800">
+      <div className="overflow-x-auto rounded-xl border border-zinc-800">
         <table className="w-full">
           <thead className="bg-zinc-900">
             <tr className="text-left text-xs text-zinc-500">
@@ -24,7 +26,7 @@ export default async function UsersPage() {
               <th className="p-4 font-medium">Email</th>
               <th className="p-4 font-medium">Role</th>
               <th className="p-4 font-medium">Links</th>
-              <th className="p-4 font-medium">Actions</th>
+              <th className="p-4 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -56,7 +58,11 @@ export default async function UsersPage() {
                   )}
                 </td>
                 <td className="p-4">
-                  <EditUserButton user={user} />
+                  <div className="flex items-center justify-end gap-1">
+                    <EditUserButton user={user} />
+                    {/* No delete control on your own row — the API refuses it anyway. */}
+                    {user.id !== session?.id && <DeleteUserButton user={user} />}
+                  </div>
                 </td>
               </tr>
             ))}
