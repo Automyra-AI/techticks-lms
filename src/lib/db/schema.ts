@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -101,6 +101,8 @@ export const assignments = sqliteTable("assignments", {
   createdAt: text("created_at").notNull(),
 });
 
+// One row per (assignment, student). Re-submitting updates that row — it never
+// adds a second one — so the unique index below is the safety net for races.
 export const submissions = sqliteTable("submissions", {
   id: text("id").primaryKey(),
   assignmentId: text("assignment_id").references(() => assignments.id).notNull(),
@@ -118,8 +120,12 @@ export const submissions = sqliteTable("submissions", {
   feedback: text("feedback"),
   remarks: text("remarks"),
   submittedAt: text("submitted_at").notNull(),
+  // Set only when the student re-submits, so the UI can show "Updated <date>".
+  updatedAt: text("updated_at"),
   reviewedAt: text("reviewed_at"),
-});
+}, (t) => [
+  uniqueIndex("submissions_assignment_student_unique").on(t.assignmentId, t.studentId),
+]);
 
 export const attendance = sqliteTable("attendance", {
   id: text("id").primaryKey(),

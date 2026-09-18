@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getStudentSubmissions, getAllAssignments, getSubmissionsForGrading } from "@/lib/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { GradeSubmission } from "@/components/grades/grade-submission";
 import { formatDate } from "@/lib/utils";
@@ -51,10 +51,12 @@ export default async function GradesPage() {
                       <p className="text-xs text-zinc-500">
                         {sub.studentName}
                         {sub.submittedAt ? ` · submitted ${formatDate(sub.submittedAt)}` : ""}
+                        {sub.updatedAt ? ` · updated ${formatDate(sub.updatedAt)}` : ""}
                       </p>
                       {sub.feedback && <p className="mt-1 text-xs text-zinc-500">Feedback: {sub.feedback}</p>}
                     </div>
                     <div className="flex items-center gap-4">
+                      {sub.updatedAt && <Badge variant="info">Updated</Badge>}
                       <StatusBadge status={sub.status ?? "pending"} />
                       <span className="text-sm font-bold text-violet-400">
                         {sub.marks ?? "—"}/{sub.maxMarks}
@@ -121,6 +123,7 @@ export default async function GradesPage() {
                       {sub.feedback && <p className="mt-1 text-sm text-zinc-500">{sub.feedback}</p>}
                     </div>
                     <div className="flex items-center gap-4">
+                      {sub.updatedAt && <Badge variant="info">Updated</Badge>}
                       <StatusBadge status={sub.status ?? "pending"} />
                       <span className="text-lg font-bold text-violet-400">
                         {sub.marks ?? "—"}/{assignment?.maxMarks ?? 100}

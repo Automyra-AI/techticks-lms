@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { submissions, users, assignments } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
 
-// Student submits an assignment
+// Student submits an assignment. A student has at most one submission per
+// assignment: submitting again updates that row (and sends it back for review)
+// instead of adding a second one.
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -34,27 +36,67 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "That assignment no longer exists." }, { status: 404 });
   }
 
-  const id = crypto.randomUUID();
+  const [existing] = await db
+    .select()
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.assignmentId, body.assignmentId),
+        eq(submissions.studentId, session.id)
+      )
+    )
+    .limit(1);
+
+  const text = (value: unknown) => {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    return trimmed === "" ? null : trimmed;
+  };
+  const now = new Date().toISOString();
+  const id = existing?.id ?? crypto.randomUUID();
+
   try {
-    await db.insert(submissions).values({
-      id,
-      assignmentId: body.assignmentId,
-      studentId: session.id,
-      content: body.content ?? null,
-      githubUrl: body.githubUrl ?? null,
-      driveUrl: body.driveUrl ?? null,
-      fileData: body.fileData || null,
-      fileName: body.fileName || null,
-      fileType: body.fileType || null,
-      status: "pending",
-      submittedAt: new Date().toISOString(),
-    });
+    if (existing) {
+      // Re-submission: the form carries the previous text values, so they are the
+      // new truth. The uploaded file is the exception — it cannot be pre-filled,
+      // so it is kept unless a new one is attached. Marks reset because they
+      // belong to the work that was just replaced; feedback stays so the student
+      // can still see what the trainer asked for.
+      await db
+        .update(submissions)
+        .set({
+          content: text(body.content),
+          githubUrl: text(body.githubUrl),
+          driveUrl: text(body.driveUrl),
+          fileData: body.fileData || existing.fileData,
+          fileName: body.fileData ? body.fileName || null : existing.fileName,
+          fileType: body.fileData ? body.fileType || null : existing.fileType,
+          status: "pending",
+          marks: null,
+          reviewedAt: null,
+          updatedAt: now,
+        })
+        .where(eq(submissions.id, existing.id));
+    } else {
+      await db.insert(submissions).values({
+        id,
+        assignmentId: body.assignmentId,
+        studentId: session.id,
+        content: text(body.content),
+        githubUrl: text(body.githubUrl),
+        driveUrl: text(body.driveUrl),
+        fileData: body.fileData || null,
+        fileName: body.fileName || null,
+        fileType: body.fileType || null,
+        status: "pending",
+        submittedAt: now,
+      });
+    }
   } catch {
     return NextResponse.json({ error: "Could not submit. Please try again." }, { status: 500 });
   }
 
   const [submission] = await db.select().from(submissions).where(eq(submissions.id, id));
-  return NextResponse.json({ submission });
+  return NextResponse.json({ submission, updated: Boolean(existing) });
 }
 
 // Trainer/admin grades a submission

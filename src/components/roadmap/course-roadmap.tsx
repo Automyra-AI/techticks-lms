@@ -99,9 +99,11 @@ const nodeTypes = {
 interface CourseRoadmapProps {
   nodes: RoadmapNodeData[];
   onNodeClick?: (node: RoadmapNodeData) => void;
+  /** Only staff may rearrange the roadmap; students pan and read. */
+  canEdit?: boolean;
 }
 
-export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadmapProps) {
+export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick, canEdit = false }: CourseRoadmapProps) {
   const [filter, setFilter] = useState<"all" | "incomplete" | "completed">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -118,9 +120,9 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick }: CourseRoadma
         type: "roadmapNode",
         position: { x: 0, y: index * 160 },
         data: { ...node, selected: false },
-        draggable: true,
+        draggable: canEdit,
       })),
-    [filteredNodes]
+    [filteredNodes, canEdit]
   );
 
   const initialEdges: Edge[] = useMemo(

@@ -36,5 +36,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Static files in public/ must be excluded too: the image optimizer fetches
+  // them back over HTTP, and a redirect to /login makes it reject them.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico)$).*)",
+  ],
 };

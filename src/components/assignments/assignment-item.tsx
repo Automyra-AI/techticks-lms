@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge } from "@/components/ui/badge";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { formatDate } from "@/lib/utils";
 import { Calendar, FileText, ExternalLink } from "lucide-react";
@@ -32,11 +32,25 @@ export function AssignmentItem({
 }: {
   assignment: AssignmentItemData;
   role?: string;
-  submission?: { status?: string | null; marks?: number | null; driveUrl?: string | null; fileUrl?: string | null; fileName?: string | null };
+  submission?: {
+    status?: string | null;
+    marks?: number | null;
+    content?: string | null;
+    driveUrl?: string | null;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    submittedAt?: string | null;
+    updatedAt?: string | null;
+  };
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const isStaff = role === "admin" || role === "trainer";
   const isStudent = role === "student";
+  // A student has a single submission per assignment; re-submitting edits it and
+  // stamps updatedAt, which is what the "Updated" chip reflects.
+  const submissionForm = submission
+    ? { driveUrl: submission.driveUrl, content: submission.content, fileName: submission.fileName }
+    : undefined;
 
   // An assignment can have an uploaded file AND an external link — show both.
   const uploadedUrl = assignment.hasFile ? `/api/assignments/file?id=${assignment.id}` : undefined;
@@ -68,6 +82,11 @@ export function AssignmentItem({
       {submission?.marks != null && (
         <span className="text-violet-400">Score: {submission.marks}/{assignment.maxMarks ?? 100}</span>
       )}
+      {submission?.updatedAt ? (
+        <span className="text-zinc-400">Updated {formatDate(submission.updatedAt)}</span>
+      ) : submission?.submittedAt ? (
+        <span className="text-zinc-400">Submitted {formatDate(submission.submittedAt)}</span>
+      ) : null}
     </div>
   );
 
@@ -104,6 +123,7 @@ export function AssignmentItem({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-1" onClick={stop}>
+              {submission?.updatedAt && <Badge variant="info">Updated</Badge>}
               {submission?.status && <StatusBadge status={submission.status} />}
               {isStaff && (
                 <>
@@ -121,7 +141,7 @@ export function AssignmentItem({
               <div>{fileLinks}</div>
               {isStudent && (
                 <div onClick={stop}>
-                  <SubmitAssignmentButton assignmentId={assignment.id} title={assignment.title} />
+                  <SubmitAssignmentButton assignmentId={assignment.id} title={assignment.title} submission={submissionForm} />
                 </div>
               )}
             </div>
@@ -174,9 +194,16 @@ export function AssignmentItem({
             </div>
           )}
 
-          {isStudent && (submission?.driveUrl || submission?.fileUrl) && (
+          {isStudent && (submission?.driveUrl || submission?.fileUrl || submission?.content) && (
             <div className="space-y-1 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-sm">
-              <p className="text-xs text-zinc-500">Your submission {submission?.status ? `· ${submission.status}` : ""}</p>
+              <p className="text-xs text-zinc-500">
+                Your submission {submission?.status ? `· ${submission.status}` : ""}
+                {submission?.updatedAt
+                  ? ` · updated ${formatDate(submission.updatedAt)}`
+                  : submission?.submittedAt
+                    ? ` · submitted ${formatDate(submission.submittedAt)}`
+                    : ""}
+              </p>
               {submission?.fileUrl && (
                 <a
                   href={submission.fileUrl}
@@ -197,12 +224,15 @@ export function AssignmentItem({
                   <ExternalLink className="h-3.5 w-3.5" /> View submitted Drive link
                 </a>
               )}
+              {submission?.content && (
+                <p className="whitespace-pre-wrap text-zinc-400">{submission.content}</p>
+              )}
             </div>
           )}
 
           {isStudent && (
             <div className="flex justify-end pt-2">
-              <SubmitAssignmentButton assignmentId={assignment.id} title={assignment.title} />
+              <SubmitAssignmentButton assignmentId={assignment.id} title={assignment.title} submission={submissionForm} />
             </div>
           )}
         </div>

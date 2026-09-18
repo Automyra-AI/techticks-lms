@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -17,7 +18,6 @@ import {
   Users,
   Settings,
   HelpCircle,
-  Zap,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -58,9 +58,14 @@ export function Sidebar({ user }: { user: SessionUser }) {
       )}
     >
       <div className="flex h-16 items-center gap-3 border-b border-zinc-800 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-violet-400">
-          <Zap className="h-5 w-5 text-white" />
-        </div>
+        <Image
+          src="/techticks-logo-light.png"
+          alt="TechTicks"
+          width={36}
+          height={36}
+          priority
+          className="h-9 w-9 shrink-0 object-contain"
+        />
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-zinc-100">TechTicks</p>

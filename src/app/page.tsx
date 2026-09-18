@@ -1,5 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Zap, ArrowRight, Map, ClipboardList, BarChart3, Bot } from "lucide-react";
+import { ArrowRight, Map, ClipboardList, BarChart3, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
@@ -7,9 +8,14 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-950 to-violet-950/20">
       <nav className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-950/60 px-6 py-4 backdrop-blur-sm lg:px-12">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-400">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
+          <Image
+            src="/techticks-logo-light.png"
+            alt="TechTicks"
+            width={40}
+            height={40}
+            priority
+            className="h-10 w-10 object-contain"
+          />
           <div>
             <p className="font-bold text-zinc-100">TechTicks Academy</p>
             <p className="text-xs text-zinc-500">AI Automation LMS</p>

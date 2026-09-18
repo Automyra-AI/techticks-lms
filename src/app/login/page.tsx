@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import { Zap, Mail, Lock, AlertCircle } from "lucide-react";
+import { Mail, Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,9 +56,14 @@ export default function LoginPage() {
 
       <Card className="relative w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-violet-400">
-            <Zap className="h-7 w-7 text-white" />
-          </div>
+          <Image
+            src="/techticks-logo-light.png"
+            alt="TechTicks"
+            width={56}
+            height={56}
+            priority
+            className="mx-auto mb-4 h-14 w-14 object-contain"
+          />
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>Sign in to TechTicks Academy</CardDescription>
         </CardHeader>

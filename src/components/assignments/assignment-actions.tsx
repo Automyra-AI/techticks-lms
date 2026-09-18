@@ -297,20 +297,38 @@ export function DeleteAssignmentButton({ id, title }: { id: string; title: strin
   );
 }
 
+export type SubmissionFormValues = {
+  driveUrl?: string | null;
+  content?: string | null;
+  fileName?: string | null;
+};
+
+/**
+ * Submit / update a student's work. A student has one submission per assignment,
+ * so when one already exists the form opens pre-filled with it and saving edits
+ * that same submission instead of adding another.
+ */
 export function SubmitAssignmentButton({
   assignmentId,
   title,
+  submission,
 }: {
   assignmentId: string;
   title: string;
+  submission?: SubmissionFormValues;
 }) {
   const router = useRouter();
+  const hasSubmission = Boolean(submission);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickedFile, setPickedFile] = useState<{ data: string; name: string; type: string } | null>(null);
-  const [form, setForm] = useState({ driveUrl: "", content: "" });
+  const [form, setForm] = useState({
+    driveUrl: submission?.driveUrl ?? "",
+    content: submission?.content ?? "",
+  });
+  const existingFileName = submission?.fileName ?? null;
 
   async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
     setError(null);
@@ -326,7 +344,7 @@ export function SubmitAssignmentButton({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!pickedFile && !form.driveUrl.trim() && !form.content.trim()) {
+    if (!pickedFile && !existingFileName && !form.driveUrl.trim() && !form.content.trim()) {
       setError("Upload a file, paste a Drive link, or add notes.");
       return;
     }
@@ -353,7 +371,6 @@ export function SubmitAssignmentButton({
     setTimeout(() => {
       setOpen(false);
       setDone(false);
-      setForm({ driveUrl: "", content: "" });
       setPickedFile(null);
       router.refresh();
     }, 900);
@@ -369,13 +386,26 @@ export function SubmitAssignmentButton({
           setOpen(true);
         }}
       >
-        <Upload className="h-4 w-4" /> Submit Work
+        <Upload className="h-4 w-4" /> {hasSubmission ? "Update Submission" : "Submit Work"}
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Submit Assignment" description={title}>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={hasSubmission ? "Update Submission" : "Submit Assignment"}
+        description={title}
+      >
         {done ? (
-          <p className="py-6 text-center text-emerald-400">✓ Submitted for review!</p>
+          <p className="py-6 text-center text-emerald-400">
+            {hasSubmission ? "✓ Submission updated — sent back for review!" : "✓ Submitted for review!"}
+          </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
+            {hasSubmission && (
+              <p className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+                This updates the work you already submitted — it won&apos;t create a second entry. Saving
+                sends it back to your trainer for review.
+              </p>
+            )}
             <div className="space-y-2">
               <Label>Upload your work (max {MAX_FILE_MB} MB)</Label>
               <input
@@ -383,7 +413,11 @@ export function SubmitAssignmentButton({
                 onChange={onFilePicked}
                 className="block w-full text-sm text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-violet-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-violet-500"
               />
-              {pickedFile && <p className="text-xs text-emerald-400">Selected: {pickedFile.name}</p>}
+              {pickedFile ? (
+                <p className="text-xs text-emerald-400">Selected: {pickedFile.name}</p>
+              ) : existingFileName ? (
+                <p className="text-xs text-zinc-500">Current file: {existingFileName} (upload a new one to replace)</p>
+              ) : null}
               <p className="text-xs text-zinc-500">Uploading is the most reliable option — no sharing settings to get wrong.</p>
             </div>
             <div className="text-center text-xs text-zinc-600">— or —</div>
@@ -401,7 +435,9 @@ export function SubmitAssignmentButton({
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={busy}>{busy ? "Submitting…" : "Submit"}</Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? "Saving…" : hasSubmission ? "Save Changes" : "Submit"}
+              </Button>
             </div>
           </form>
         )}

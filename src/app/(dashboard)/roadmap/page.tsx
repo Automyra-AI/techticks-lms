@@ -1,9 +1,17 @@
-import { getRoadmapNodes } from "@/lib/data";
+import { getRoadmapNodes, getRoadmapNodesForStudent } from "@/lib/data";
+import { getSession } from "@/lib/auth";
 import { RoadmapClient } from "@/components/roadmap/roadmap-client";
 import type { RoadmapNodeData } from "@/types";
 
 export default async function RoadmapPage() {
-  const nodes = await getRoadmapNodes();
+  const session = await getSession();
+  const isStaff = session?.role === "admin" || session?.role === "trainer";
+
+  // Staff see (and edit) the course roadmap itself; a student sees the same
+  // topics with their own progress laid over them.
+  const nodes = session && !isStaff
+    ? await getRoadmapNodesForStudent(session.id)
+    : await getRoadmapNodes();
 
   const roadmapData: RoadmapNodeData[] = nodes.map((node) => ({
     id: node.id,
@@ -21,5 +29,5 @@ export default async function RoadmapPage() {
     notes: node.notes ?? undefined,
   }));
 
-  return <RoadmapClient nodes={roadmapData} />;
+  return <RoadmapClient nodes={roadmapData} canEdit={isStaff} />;
 }

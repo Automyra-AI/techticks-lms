@@ -49,9 +49,12 @@ export default async function AssignmentsPage() {
                     ? {
                         status: sub.status,
                         marks: sub.marks,
+                        content: sub.content,
                         driveUrl: sub.driveUrl,
                         fileUrl: sub.hasFile ? `/api/submissions/file?id=${sub.id}` : undefined,
                         fileName: sub.fileName,
+                        submittedAt: sub.submittedAt,
+                        updatedAt: sub.updatedAt,
                       }
                     : undefined
                 }

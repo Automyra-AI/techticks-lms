@@ -143,6 +143,28 @@ export async function getRoadmapNodes(courseId?: string) {
   return db.select().from(roadmapNodes).where(eq(roadmapNodes.courseId, firstCourse.id)).orderBy(roadmapNodes.orderIndex);
 }
 
+/**
+ * The roadmap as one student sees it: course topics with the shared status
+ * replaced by that student's own lesson progress, so ticking a topic off never
+ * changes what other students see.
+ */
+export async function getRoadmapNodesForStudent(userId: string, courseId?: string) {
+  const [nodeRows, myProgress] = await Promise.all([
+    getRoadmapNodes(courseId),
+    db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
+  ]);
+  const progressByNode = new Map(myProgress.map((p) => [p.nodeId, p]));
+
+  return nodeRows.map((node) => {
+    const mine = progressByNode.get(node.id);
+    return {
+      ...node,
+      status: mine?.completed ? ("completed" as const) : mine ? ("in_progress" as const) : ("not_started" as const),
+      myProgress: mine?.progress ?? 0,
+    };
+  });
+}
+
 export async function getAllCourses() {
   return db.select().from(courses);
 }
@@ -227,6 +249,7 @@ export async function getStudentSubmissions(studentId: string) {
       marks: submissions.marks,
       feedback: submissions.feedback,
       submittedAt: submissions.submittedAt,
+      updatedAt: submissions.updatedAt,
       fileName: submissions.fileName,
       hasFile: sql<number>`case when ${submissions.fileData} is not null then 1 else 0 end`,
     })
@@ -252,6 +275,7 @@ export async function getSubmissionsForGrading() {
         marks: submissions.marks,
         feedback: submissions.feedback,
         submittedAt: submissions.submittedAt,
+        updatedAt: submissions.updatedAt,
         fileName: submissions.fileName,
         hasFile: sql<number>`case when ${submissions.fileData} is not null then 1 else 0 end`,
       })
@@ -282,8 +306,13 @@ export async function getSubmissionsForGrading() {
       marks: s.marks,
       feedback: s.feedback,
       submittedAt: s.submittedAt,
+      updatedAt: s.updatedAt,
     }))
-    .sort((a, b) => rank(a.status) - rank(b.status) || (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""));
+    .sort((a, b) => {
+      const latest = (r: { submittedAt: string | null; updatedAt: string | null }) =>
+        r.updatedAt ?? r.submittedAt ?? "";
+      return rank(a.status) - rank(b.status) || latest(b).localeCompare(latest(a));
+    });
 }
 
 export async function getAllSessions() {
@@ -524,8 +553,8 @@ export async function getRecentActivities(user?: { id: string; role: string }) {
   const events = [
     ...subRows.map((s) => ({
       id: `sub-${s.id}`,
-      action: `${userName(s.studentId)} submitted “${assignmentTitle(s.assignmentId)}”`,
-      at: s.submittedAt,
+      action: `${userName(s.studentId)} ${s.updatedAt ? "updated their submission for" : "submitted"} “${assignmentTitle(s.assignmentId)}”`,
+      at: s.updatedAt ?? s.submittedAt,
       type: "submission",
     })),
     ...enrollRows.map((e) => ({

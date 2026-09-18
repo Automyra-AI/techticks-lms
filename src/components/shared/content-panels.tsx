@@ -13,9 +13,12 @@ import type { RoadmapNodeData } from "@/types";
 export function NodeDetailPanel({
   node,
   onClose,
+  canEdit = false,
 }: {
   node: RoadmapNodeData | null;
   onClose: () => void;
+  /** Staff edit the course roadmap itself; a student only records their own progress. */
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -121,8 +124,13 @@ export function NodeDetailPanel({
 
         {node.status !== "completed" && node.status !== "locked" && (
           <Button className="w-full" onClick={markComplete} disabled={busy}>
-            {busy ? "Saving…" : "Mark as Complete"}
+            {busy ? "Saving…" : canEdit ? "Mark as Complete for the Course" : "Mark as Complete"}
           </Button>
+        )}
+        {!canEdit && (
+          <p className="text-center text-xs text-zinc-500">
+            This tracks your own progress — the roadmap is managed by your trainer.
+          </p>
         )}
       </CardContent>
     </Card>

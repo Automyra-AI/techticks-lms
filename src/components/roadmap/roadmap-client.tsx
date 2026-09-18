@@ -5,7 +5,13 @@ import { CourseRoadmap } from "@/components/roadmap/course-roadmap";
 import { NodeDetailPanel } from "@/components/shared/content-panels";
 import type { RoadmapNodeData } from "@/types";
 
-export function RoadmapClient({ nodes }: { nodes: RoadmapNodeData[] }) {
+export function RoadmapClient({
+  nodes,
+  canEdit = false,
+}: {
+  nodes: RoadmapNodeData[];
+  canEdit?: boolean;
+}) {
   const [selectedNode, setSelectedNode] = useState<RoadmapNodeData | null>(null);
 
   const completed = nodes.filter((n) => n.status === "completed").length;
@@ -18,6 +24,7 @@ export function RoadmapClient({ nodes }: { nodes: RoadmapNodeData[] }) {
           <h2 className="text-2xl font-bold text-zinc-100">Course Roadmap</h2>
           <p className="text-zinc-400">
             Scroll to move through the path · click a topic for details · drag to pan
+            {canEdit ? " · drag topics to rearrange" : ""}
           </p>
         </div>
         <div className="text-right">
@@ -32,12 +39,12 @@ export function RoadmapClient({ nodes }: { nodes: RoadmapNodeData[] }) {
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <CourseRoadmap nodes={nodes} onNodeClick={setSelectedNode} />
+        <CourseRoadmap nodes={nodes} onNodeClick={setSelectedNode} canEdit={canEdit} />
 
         {/* Slide-over detail panel */}
         {selectedNode && (
           <div className="absolute right-3 top-3 bottom-3 z-10 w-full max-w-sm rounded-xl shadow-2xl shadow-black/50">
-            <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+            <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} canEdit={canEdit} />
           </div>
         )}
       </div>
