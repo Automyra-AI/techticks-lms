@@ -9,6 +9,9 @@ import { Plus, Trash2, ClipboardCheck } from "lucide-react";
 
 type Student = { id: string; name: string; email: string };
 const STATUSES = ["present", "late", "absent", "excused"] as const;
+/** Roster filters inside the Mark Attendance dialog. */
+const FILTERS = ["all", ...STATUSES, "unmarked"] as const;
+type Filter = (typeof FILTERS)[number];
 
 export function CreateSessionButton() {
   const router = useRouter();
@@ -124,6 +127,7 @@ export function MarkAttendanceButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marks, setMarks] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<Filter>("all");
 
   function openModal() {
     // Start from whatever was already marked. Anyone unmarked stays blank — the
@@ -132,20 +136,28 @@ export function MarkAttendanceButton({
     const seed: Record<string, string> = {};
     for (const s of students) seed[s.id] = existing[s.id] ?? "";
     setMarks(seed);
+    setFilter("all");
     setError(null);
     setOpen(true);
-  }
-
-  function setAll(status: string) {
-    const next: Record<string, string> = {};
-    for (const s of students) next[s.id] = status;
-    setMarks(next);
   }
 
   // Students with a status chosen now, and students whose existing mark the
   // trainer has just blanked out (so a mis-marked session can be undone).
   const chosen = students.filter((s) => marks[s.id]);
   const cleared = students.filter((s) => !marks[s.id] && existing[s.id]);
+
+  const matches = (s: Student, f: Filter) =>
+    f === "all" ? true : f === "unmarked" ? !marks[s.id] : marks[s.id] === f;
+
+  const visible = students.filter((s) => matches(s, filter));
+  const countFor = (f: Filter) => students.filter((s) => matches(s, f)).length;
+
+  /** Applies a status to the students currently shown, not the whole roster. */
+  function setAllShown(status: string) {
+    const next = { ...marks };
+    for (const s of visible) next[s.id] = status;
+    setMarks(next);
+  }
 
   async function save() {
     if (chosen.length === 0 && cleared.length === 0) {
@@ -183,22 +195,48 @@ export function MarkAttendanceButton({
           <p className="py-6 text-center text-sm text-zinc-500">No enrolled students to mark.</p>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-zinc-500">Mark all:</span>
-              {STATUSES.map((s) => (
+            {/* Filter the roster by status — "Present" shows who is marked present. */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {FILTERS.map((f) => {
+                const n = countFor(f);
+                const active = filter === f;
+                return (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFilter(f)}
+                    className={`rounded-md border px-2 py-0.5 text-xs capitalize transition-colors ${
+                      active
+                        ? "border-violet-500/50 bg-violet-600/20 text-violet-300"
+                        : "border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                    }`}
+                  >
+                    {f} <span className={active ? "text-violet-400" : "text-zinc-600"}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-3">
+              <span className="text-xs text-zinc-500">
+                {filter === "all" ? "Mark all:" : `Mark these ${visible.length}:`}
+              </span>
+              {STATUSES.map((st) => (
                 <button
-                  key={s}
+                  key={st}
                   type="button"
-                  onClick={() => setAll(s)}
-                  className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs capitalize text-zinc-300 hover:bg-zinc-800"
+                  disabled={visible.length === 0}
+                  onClick={() => setAllShown(st)}
+                  className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs capitalize text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
                 >
-                  {s}
+                  {st}
                 </button>
               ))}
               <button
                 type="button"
-                onClick={() => setAll("")}
-                className="rounded-md border border-zinc-800 px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                disabled={visible.length === 0}
+                onClick={() => setAllShown("")}
+                className="rounded-md border border-zinc-800 px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-40"
               >
                 Clear
               </button>
@@ -210,7 +248,12 @@ export function MarkAttendanceButton({
               {chosen.length === 0 && cleared.length === 0 && " — nobody is marked yet"}
             </p>
             <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
-              {students.map((s) => (
+              {visible.length === 0 && (
+                <p className="py-6 text-center text-sm text-zinc-500">
+                  No students are marked {filter}.
+                </p>
+              )}
+              {visible.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 p-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-zinc-200">{s.name}</p>
