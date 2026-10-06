@@ -126,9 +126,11 @@ export function MarkAttendanceButton({
   const [marks, setMarks] = useState<Record<string, string>>({});
 
   function openModal() {
-    // Seed with existing marks, defaulting unmarked students to "present".
+    // Start from whatever was already marked. Anyone unmarked stays blank — the
+    // trainer picks each status deliberately, rather than everyone defaulting to
+    // "present" and a stray Save marking the whole roster as attending.
     const seed: Record<string, string> = {};
-    for (const s of students) seed[s.id] = existing[s.id] ?? "present";
+    for (const s of students) seed[s.id] = existing[s.id] ?? "";
     setMarks(seed);
     setError(null);
     setOpen(true);
@@ -140,14 +142,26 @@ export function MarkAttendanceButton({
     setMarks(next);
   }
 
+  // Students with a status chosen now, and students whose existing mark the
+  // trainer has just blanked out (so a mis-marked session can be undone).
+  const chosen = students.filter((s) => marks[s.id]);
+  const cleared = students.filter((s) => !marks[s.id] && existing[s.id]);
+
   async function save() {
+    if (chosen.length === 0 && cleared.length === 0) {
+      setError("Choose a status for at least one student.");
+      return;
+    }
     setBusy(true);
     setError(null);
-    const records = students.map((s) => ({ studentId: s.id, status: marks[s.id] ?? "present" }));
     const res = await fetch("/api/attendance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, records }),
+      body: JSON.stringify({
+        sessionId,
+        records: chosen.map((s) => ({ studentId: s.id, status: marks[s.id] })),
+        clear: cleared.map((s) => s.id),
+      }),
     });
     setBusy(false);
     if (!res.ok) {
@@ -169,7 +183,7 @@ export function MarkAttendanceButton({
           <p className="py-6 text-center text-sm text-zinc-500">No enrolled students to mark.</p>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-zinc-500">Mark all:</span>
               {STATUSES.map((s) => (
                 <button
@@ -181,7 +195,20 @@ export function MarkAttendanceButton({
                   {s}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setAll("")}
+                className="rounded-md border border-zinc-800 px-2 py-0.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              >
+                Clear
+              </button>
             </div>
+
+            <p className="text-xs text-zinc-500">
+              {chosen.length} of {students.length} marked
+              {cleared.length > 0 && ` · ${cleared.length} will be unmarked`}
+              {chosen.length === 0 && cleared.length === 0 && " — nobody is marked yet"}
+            </p>
             <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
               {students.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 p-3">
@@ -190,10 +217,11 @@ export function MarkAttendanceButton({
                     <p className="truncate text-xs text-zinc-500">{s.email}</p>
                   </div>
                   <Select
-                    className="w-32"
-                    value={marks[s.id] ?? "present"}
+                    className={`w-32 ${marks[s.id] ? "" : "text-zinc-500"}`}
+                    value={marks[s.id] ?? ""}
                     onChange={(e) => setMarks({ ...marks, [s.id]: e.target.value })}
                   >
+                    <option value="">— Select —</option>
                     {STATUSES.map((st) => (
                       <option key={st} value={st} className="capitalize">
                         {st[0].toUpperCase() + st.slice(1)}
