@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/badge";
 import { EditQuizButton, DeleteQuizButton } from "@/components/quizzes/quiz-actions";
 import { formatDate } from "@/lib/utils";
-import { Clock, HelpCircle, AlertTriangle } from "lucide-react";
+import { Clock, HelpCircle, AlertTriangle, RotateCcw } from "lucide-react";
 
 type QB = { question: string; options: string[]; correctIndex: number };
 type Attempt = {
+  studentId: string;
   studentName: string;
   studentEmail: string;
   score: number;
@@ -25,6 +28,74 @@ const reasonLabel: Record<string, string> = {
   tab_switch: "Left the tab",
   completed: "Completed",
 };
+
+/**
+ * Clears one student's attempt so they can sit the quiz again — for a browser
+ * that lost focus and auto-submitted, or an attempt graded against a wrong key.
+ */
+function AllowRetakeButton({
+  quizId,
+  attempt,
+}: {
+  quizId: string;
+  attempt: Attempt;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function reset() {
+    setBusy(true);
+    setError(null);
+    const res = await fetch(
+      `/api/quizzes/attempt?quizId=${encodeURIComponent(quizId)}&studentId=${encodeURIComponent(attempt.studentId)}`,
+      { method: "DELETE" }
+    );
+    setBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Failed to reset the attempt");
+      return;
+    }
+    setOpen(false);
+    router.refresh();
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={`Allow ${attempt.studentName} to retake`}
+        aria-label={`Allow ${attempt.studentName} to retake`}
+        className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-violet-400"
+      >
+        <RotateCcw className="h-4 w-4" />
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Allow a retake" description={attempt.studentName}>
+        <div className="space-y-4 text-sm">
+          <p className="text-zinc-400">
+            This deletes their current attempt ({attempt.score}/{attempt.total}) so they can take the quiz
+            again. Their old score is not kept.
+          </p>
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+            They may already have seen which answers were right on their results screen, so a retake will
+            not be a fair re-test of the same questions.
+          </p>
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={reset} disabled={busy}>
+              {busy ? "Resetting…" : "Allow retake"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
 
 export function QuizCard({
   quiz,
@@ -101,6 +172,7 @@ export function QuizCard({
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="text-sm font-bold text-violet-400">{a.score}/{a.total} · {a.percent}%</span>
                     <StatusBadge status={a.passed ? "approved" : "rejected"} />
+                    <AllowRetakeButton quizId={quiz.id} attempt={a} />
                   </div>
                 </div>
               ))}

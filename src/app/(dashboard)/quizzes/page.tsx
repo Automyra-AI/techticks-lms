@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { CreateQuizButton } from "@/components/quizzes/quiz-actions";
 import { QuizCard } from "@/components/quizzes/quiz-card";
 import { TakeQuiz } from "@/components/quizzes/take-quiz";
+import { ReviewAttemptButton } from "@/components/quizzes/review-attempt";
 import { Clock, HelpCircle } from "lucide-react";
 
 export default async function QuizzesPage() {
@@ -69,6 +70,7 @@ export default async function QuizzesPage() {
                     <>
                       <span className="text-sm font-bold text-violet-400">{q.attempt.score}/{q.attempt.total}</span>
                       <StatusBadge status={q.attempt.passed ? "approved" : "rejected"} />
+                      {q.review && <ReviewAttemptButton title={q.title} review={q.review} />}
                     </>
                   ) : (
                     <TakeQuiz quiz={{ id: q.id, title: q.title, timeLimit: q.timeLimit, passingScore: q.passingScore, questions: q.questions }} />

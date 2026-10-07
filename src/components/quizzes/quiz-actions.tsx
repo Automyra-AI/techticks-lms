@@ -9,7 +9,9 @@ import { Plus, Trash2, Pencil, X } from "lucide-react";
 
 type QB = { question: string; options: string[]; correctIndex: number };
 
-const blankQuestion = (): QB => ({ question: "", options: ["", ""], correctIndex: 0 });
+// correctIndex -1 = the author has not marked an answer yet. Starting at 0
+// silently made option 1 the answer for every question the author skipped.
+const blankQuestion = (): QB => ({ question: "", options: ["", ""], correctIndex: -1 });
 
 function QuizForm({
   mode,
@@ -45,7 +47,10 @@ function QuizForm({
       qs.map((q, i) => {
         if (i !== qi || q.options.length <= 2) return q;
         const options = q.options.filter((_, j) => j !== oi);
-        const correctIndex = q.correctIndex >= options.length ? options.length - 1 : q.correctIndex;
+        // Deleting the marked answer leaves the question unmarked rather than
+        // promoting a neighbouring option to "correct" behind the author's back.
+        const correctIndex =
+          q.correctIndex === oi ? -1 : q.correctIndex > oi ? q.correctIndex - 1 : q.correctIndex;
         return { ...q, options, correctIndex };
       })
     );
@@ -58,6 +63,15 @@ function QuizForm({
     for (const [i, q] of questions.entries()) {
       if (!q.question.trim()) return setError(`Question ${i + 1} needs text.`);
       if (q.options.some((o) => !o.trim())) return setError(`Question ${i + 1} has an empty option.`);
+    }
+    const unmarked = questions
+      .map((q, i) => (q.correctIndex < 0 ? i + 1 : null))
+      .filter((n): n is number => n !== null);
+    if (unmarked.length) {
+      return setError(
+        `Mark the correct answer for question${unmarked.length > 1 ? "s" : ""} ${unmarked.join(", ")} — ` +
+          `without it the quiz cannot be scored.`
+      );
     }
     setBusy(true);
     const payload = {
@@ -103,7 +117,14 @@ function QuizForm({
         {questions.map((q, qi) => (
           <div key={qi} className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-zinc-400">Question {qi + 1}</span>
+              <span className="text-xs font-medium text-zinc-400">
+                Question {qi + 1}
+                {q.correctIndex < 0 && (
+                  <span className="ml-2 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                    answer not marked
+                  </span>
+                )}
+              </span>
               {questions.length > 1 && (
                 <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== qi))} className="text-zinc-500 hover:text-red-400" aria-label="Remove question">
                   <Trash2 className="h-4 w-4" />
@@ -112,9 +133,16 @@ function QuizForm({
             </div>
             <Input value={q.question} onChange={(e) => update(qi, { question: e.target.value })} placeholder="What does an n8n trigger do?" />
             <div className="space-y-2">
-              <p className="text-xs text-zinc-500">Options — select the correct one:</p>
+              <p className={`text-xs ${q.correctIndex < 0 ? "text-amber-400" : "text-zinc-500"}`}>
+                Options — click the circle next to the correct answer:
+              </p>
               {q.options.map((opt, oi) => (
-                <div key={oi} className="flex items-center gap-2">
+                <div
+                  key={oi}
+                  className={`flex items-center gap-2 rounded-md px-1 py-0.5 ${
+                    q.correctIndex === oi ? "bg-emerald-500/10 ring-1 ring-emerald-500/30" : ""
+                  }`}
+                >
                   <input
                     type="radio"
                     name={`correct-${qi}`}

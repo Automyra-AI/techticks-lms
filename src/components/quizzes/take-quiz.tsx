@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
 
 type Q = { question: string; options: string[] };
+export type ReviewItem = {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  chosenIndex: number;
+  correct: boolean;
+};
 type Result = { score: number; total: number; percent: number; passed: boolean; reason: string };
 
 export function TakeQuiz({
@@ -22,6 +29,7 @@ export function TakeQuiz({
   const [answers, setAnswers] = useState<number[]>(() => quiz.questions.map(() => -1));
   const [secondsLeft, setSecondsLeft] = useState(quiz.timeLimit * 60);
   const [result, setResult] = useState<Result | null>(null);
+  const [review, setReview] = useState<ReviewItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const submittingRef = useRef(false);
@@ -46,6 +54,7 @@ export function TakeQuiz({
       return;
     }
     setResult({ score: data.score, total: data.total, percent: data.percent, passed: data.passed, reason });
+    setReview(Array.isArray(data.review) ? data.review : null);
     setPhase("result");
     router.refresh();
   }
@@ -186,6 +195,9 @@ export function TakeQuiz({
                 <p className="text-sm text-amber-400">Auto-submitted because time ran out.</p>
               )}
               {error && <p className="text-sm text-red-400">{error}</p>}
+
+              {review && <QuizReview review={review} />}
+
               <Button onClick={() => setPhase("closed")}>Done</Button>
             </div>
           )}
@@ -198,5 +210,56 @@ export function TakeQuiz({
       <Button size="sm" onClick={openIntro}>Start Quiz</Button>
       {mounted && overlay && createPortal(overlay, document.body)}
     </>
+  );
+}
+
+/** Per-question breakdown shown after the attempt: what you picked vs the answer. */
+export function QuizReview({ review }: { review: ReviewItem[] }) {
+  return (
+    <div className="space-y-3 text-left">
+      <p className="text-sm font-semibold text-zinc-300">
+        Answers — {review.filter((r) => r.correct).length} of {review.length} correct
+      </p>
+      <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+        {review.map((r, i) => (
+          <div
+            key={i}
+            className={`rounded-lg border p-3 ${
+              r.correct ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {r.correct ? (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              ) : (
+                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+              )}
+              <p className="text-sm font-medium text-zinc-200">
+                {i + 1}. {r.question}
+              </p>
+            </div>
+            <ul className="mt-2 space-y-1 pl-6">
+              {r.options.map((opt, oi) => {
+                const isAnswer = oi === r.correctIndex;
+                const isChoice = oi === r.chosenIndex;
+                return (
+                  <li
+                    key={oi}
+                    className={`text-xs ${
+                      isAnswer ? "font-semibold text-emerald-400" : isChoice ? "text-red-400" : "text-zinc-500"
+                    }`}
+                  >
+                    {opt}
+                    {isAnswer && " — correct answer"}
+                    {isChoice && !isAnswer && " — your answer"}
+                  </li>
+                );
+              })}
+              {r.chosenIndex < 0 && <li className="text-xs text-amber-400">You did not answer this question.</li>}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

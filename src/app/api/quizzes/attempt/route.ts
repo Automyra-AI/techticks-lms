@@ -64,5 +64,57 @@ export async function POST(request: Request) {
     submittedAt: new Date().toISOString(),
   });
 
-  return NextResponse.json({ score, total, percent, passed, passingScore: quiz.passingScore ?? 70, reason });
+  // The attempt is spent, so it is safe to hand back the answer key — this is
+  // what the student reviews to see which questions they got wrong.
+  const review = questions.map((q, i) => ({
+    question: q.question,
+    options: q.options,
+    correctIndex: q.correctIndex,
+    chosenIndex: typeof answers[i] === "number" ? answers[i] : -1,
+    correct: answers[i] === q.correctIndex,
+  }));
+
+  return NextResponse.json({
+    score,
+    total,
+    percent,
+    passed,
+    passingScore: quiz.passingScore ?? 70,
+    reason,
+    review,
+  });
+}
+
+/**
+ * Staff clears a student's attempt so they can sit the quiz again — for the
+ * student whose browser lost focus and auto-submitted, or when the answer key
+ * was wrong at the time they took it.
+ */
+export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session || (session.role !== "admin" && session.role !== "trainer")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const quizId = searchParams.get("quizId");
+  const studentId = searchParams.get("studentId");
+  if (!quizId || !studentId) {
+    return NextResponse.json({ error: "quizId and studentId are required" }, { status: 400 });
+  }
+
+  const [attempt] = await db
+    .select()
+    .from(quizAttempts)
+    .where(and(eq(quizAttempts.quizId, quizId), eq(quizAttempts.studentId, studentId)))
+    .limit(1);
+  if (!attempt) {
+    return NextResponse.json({ error: "That student has no attempt to reset." }, { status: 404 });
+  }
+
+  await db
+    .delete(quizAttempts)
+    .where(and(eq(quizAttempts.quizId, quizId), eq(quizAttempts.studentId, studentId)));
+
+  return NextResponse.json({ ok: true, cleared: { score: attempt.score, total: attempt.total } });
 }

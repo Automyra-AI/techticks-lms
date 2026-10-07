@@ -484,6 +484,7 @@ export async function getQuizzesForStaff() {
       attempts: attempts.length,
       passed: passedCount,
       attemptList: attempts.map((a) => ({
+        studentId: a.studentId,
         studentName: userById.get(a.studentId)?.name ?? "Student",
         studentEmail: userById.get(a.studentId)?.email ?? "",
         score: a.score,
@@ -521,8 +522,29 @@ export async function getQuizzesForStudent(studentId: string) {
       attempt: attempt
         ? { score: attempt.score, total: attempt.total, passed: attempt.passed, reason: attempt.reason }
         : null,
+      // Correct answers are released only to a student who has already used
+      // their attempt, so they can see what they got wrong.
+      review: attempt ? buildReview(questions, attempt.answers) : null,
     };
   });
+}
+
+/** Per-question breakdown: the options, the right one, and what was chosen. */
+function buildReview(questions: { question: string; options: string[]; correctIndex: number }[], answersJson: string | null) {
+  let answers: number[] = [];
+  try {
+    const parsed = JSON.parse(answersJson ?? "[]");
+    if (Array.isArray(parsed)) answers = parsed;
+  } catch {
+    answers = [];
+  }
+  return questions.map((q, i) => ({
+    question: q.question,
+    options: q.options,
+    correctIndex: q.correctIndex,
+    chosenIndex: typeof answers[i] === "number" ? answers[i] : -1,
+    correct: answers[i] === q.correctIndex,
+  }));
 }
 
 const rel = (iso?: string | null) =>
