@@ -3,17 +3,36 @@ import { getStudentSubmissions, getAllAssignments, getSubmissionsForGrading } fr
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { GradeSubmission } from "@/components/grades/grade-submission";
-import { formatDate } from "@/lib/utils";
+import { AssignmentGroupCard, type GradingRow } from "@/components/grades/assignment-group";
 
 export default async function GradesPage() {
   const session = await getSession();
   const isStaff = session?.role === "admin" || session?.role === "trainer";
 
   if (isStaff) {
-    const rows = await getSubmissionsForGrading();
+    const rows = (await getSubmissionsForGrading()) as GradingRow[];
     const pending = rows.filter((r) => r.status === "pending" || r.status === "revision_needed").length;
     const graded = rows.filter((r) => r.status && r.status !== "pending").length;
+
+    // One card per assignment. getSubmissionsForGrading already sorts rows with
+    // the unreviewed first, so each group keeps that order internally.
+    const byAssignment = new Map<string, GradingRow[]>();
+    for (const row of rows) {
+      const list = byAssignment.get(row.assignmentId) ?? [];
+      list.push(row);
+      byAssignment.set(row.assignmentId, list);
+    }
+    const needsReview = (r: GradingRow) => r.status === "pending" || r.status === "revision_needed";
+    const groups = [...byAssignment.entries()]
+      .map(([assignmentId, groupRows]) => ({
+        assignmentId,
+        title: groupRows[0].assignmentTitle,
+        rows: groupRows,
+        pending: groupRows.filter(needsReview).length,
+        latest: groupRows.map((r) => r.updatedAt ?? r.submittedAt).sort().at(-1) ?? "",
+      }))
+      // Assignments with work waiting rise to the top, then most recent activity.
+      .sort((a, b) => (b.pending > 0 ? 1 : 0) - (a.pending > 0 ? 1 : 0) || b.latest.localeCompare(a.latest));
 
     return (
       <div className="space-y-6">
@@ -37,38 +56,17 @@ export default async function GradesPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>Submissions</CardTitle></CardHeader>
-          <CardContent>
-            {rows.length === 0 ? (
-              <p className="py-6 text-center text-sm text-zinc-500">No submissions yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {rows.map((sub) => (
-                  <div key={sub.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-zinc-800 p-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-zinc-200">{sub.assignmentTitle}</p>
-                      <p className="text-xs text-zinc-500">
-                        {sub.studentName}
-                        {sub.submittedAt ? ` · submitted ${formatDate(sub.submittedAt)}` : ""}
-                        {sub.updatedAt ? ` · updated ${formatDate(sub.updatedAt)}` : ""}
-                      </p>
-                      {sub.feedback && <p className="mt-1 text-xs text-zinc-500">Feedback: {sub.feedback}</p>}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {sub.updatedAt && <Badge variant="info">Updated</Badge>}
-                      <StatusBadge status={sub.status ?? "pending"} />
-                      <span className="text-sm font-bold text-violet-400">
-                        {sub.marks ?? "—"}/{sub.maxMarks}
-                      </span>
-                      <GradeSubmission submission={sub} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {rows.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-500">
+            No submissions yet.
+          </p>
+        ) : (
+          <div className="grid gap-4">
+            {groups.map((g) => (
+              <AssignmentGroupCard key={g.assignmentId} title={g.title} rows={g.rows} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }

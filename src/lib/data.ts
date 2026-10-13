@@ -293,6 +293,7 @@ export async function getSubmissionsForGrading() {
   return subRows
     .map((s) => ({
       id: s.id,
+      assignmentId: s.assignmentId,
       studentName: userById.get(s.studentId)?.name ?? "Student",
       studentEmail: userById.get(s.studentId)?.email ?? "",
       assignmentTitle: assignmentById.get(s.assignmentId)?.title ?? "Assignment",
