@@ -67,7 +67,6 @@ export function CertificateClient({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Certificates</h2>
         <p className="text-zinc-400">Earn your {COURSE} certificate</p>
       </div>
 

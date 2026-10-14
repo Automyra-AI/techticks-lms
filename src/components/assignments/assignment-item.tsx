@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
@@ -51,6 +53,8 @@ export function AssignmentItem({
   const submissionForm = submission
     ? { driveUrl: submission.driveUrl, content: submission.content, fileName: submission.fileName }
     : undefined;
+  const maxMarks = assignment.maxMarks ?? 100;
+  const fullMarks = submission?.marks != null && submission.marks >= maxMarks;
 
   // An assignment can have an uploaded file AND an external link — show both.
   const uploadedUrl = assignment.hasFile ? `/api/assignments/file?id=${assignment.id}` : undefined;
@@ -80,7 +84,10 @@ export function AssignmentItem({
         </span>
       )}
       {submission?.marks != null && (
-        <span className="text-violet-400">Score: {submission.marks}/{assignment.maxMarks ?? 100}</span>
+        <span className={fullMarks ? "font-semibold text-emerald-500" : "text-violet-400"}>
+          Score: {submission.marks}/{maxMarks}
+          {fullMarks && " · full marks"}
+        </span>
       )}
       {submission?.updatedAt ? (
         <span className="text-zinc-400">Updated {formatDate(submission.updatedAt)}</span>
@@ -110,14 +117,44 @@ export function AssignmentItem({
 
   return (
     <>
+      <motion.div
+        initial="rest"
+        animate="rest"
+        whileHover={fullMarks ? "peek" : undefined}
+        className="relative h-full"
+      >
+        {fullMarks && (
+          <motion.div
+            variants={{
+              rest: { opacity: 0, y: 24, scale: 0.7, rotate: 8 },
+              peek: {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                rotate: 0,
+                transition: { type: "spring", stiffness: 400, damping: 15 },
+              },
+            }}
+            className="pointer-events-none absolute -top-12 right-2 z-20 origin-bottom"
+          >
+            <Image
+              src="/robot-goodwork.webp"
+              alt=""
+              width={150}
+              height={99}
+              className="h-auto w-[130px] drop-shadow-xl"
+            />
+          </motion.div>
+        )}
+
       <Card
         onClick={() => setDetailOpen(true)}
-        className="cursor-pointer transition-colors hover:border-violet-500/40"
+        className="cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-pop)]"
       >
-        <CardContent className="p-5">
+        <CardContent className="flex h-full flex-col p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h3 className="font-semibold text-zinc-100">{assignment.title}</h3>
+              <h3 className="font-semibold text-zinc-100 transition-colors group-hover:text-[var(--accent)]">{assignment.title}</h3>
               {assignment.description && (
                 <p className="mt-1 line-clamp-2 text-sm text-zinc-400">{assignment.description}</p>
               )}
@@ -137,7 +174,7 @@ export function AssignmentItem({
           <div className="mt-4">{meta}</div>
 
           {(fileLinks || isStudent) && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
               <div>{fileLinks}</div>
               {isStudent && (
                 <div onClick={stop}>
@@ -148,6 +185,7 @@ export function AssignmentItem({
           )}
         </CardContent>
       </Card>
+      </motion.div>
 
       <Modal open={detailOpen} onClose={() => setDetailOpen(false)} title={assignment.title} description="Assignment details">
         <div className="space-y-4">

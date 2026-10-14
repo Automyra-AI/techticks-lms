@@ -113,17 +113,27 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick, canEdit = fals
     return roadmapNodes.filter((n) => n.status !== "completed" && n.status !== "locked");
   }, [roadmapNodes, filter]);
 
-  const initialNodes: Node[] = useMemo(
-    () =>
-      filteredNodes.map((node, index) => ({
+  // A serpentine layout: left-to-right, then back again on the next row. A
+  // single column put the 53 topics 8,500px apart, so reaching the later weeks
+  // meant a long blind scroll — this keeps the whole path within a few screens
+  // and makes the sequence readable.
+  const initialNodes: Node[] = useMemo(() => {
+    const PER_ROW = 4;
+    const COL_W = 300;
+    const ROW_H = 190;
+    return filteredNodes.map((node, index) => {
+      const row = Math.floor(index / PER_ROW);
+      const slot = index % PER_ROW;
+      const col = row % 2 === 0 ? slot : PER_ROW - 1 - slot;
+      return {
         id: node.id,
         type: "roadmapNode",
-        position: { x: 0, y: index * 160 },
+        position: { x: col * COL_W, y: row * ROW_H },
         data: { ...node, selected: false },
         draggable: canEdit,
-      })),
-    [filteredNodes, canEdit]
-  );
+      };
+    });
+  }, [filteredNodes, canEdit]);
 
   const initialEdges: Edge[] = useMemo(
     () =>
@@ -133,7 +143,7 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick, canEdit = fals
         target: filteredNodes[index + 1].id,
         type: "smoothstep",
         animated: filteredNodes[index + 1].status === "in_progress",
-        style: { stroke: "#7c3aed", strokeWidth: 2 },
+        style: { stroke: "#2563eb", strokeWidth: 2 },
       })),
     [filteredNodes]
   );
@@ -173,22 +183,22 @@ export function CourseRoadmap({ nodes: roadmapNodes, onNodeClick, canEdit = fals
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
-        defaultViewport={{ x: 90, y: 72, zoom: 0.85 }}
+        defaultViewport={{ x: 40, y: 40, zoom: 0.72 }}
         minZoom={0.2}
         maxZoom={1.5}
         panOnScroll
         zoomOnScroll={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="#27272a" gap={20} />
+        <Background color="#d7dde7" gap={20} />
         <Controls className="!bg-zinc-900 !border-zinc-700 !rounded-lg [&>button]:!bg-zinc-800 [&>button]:!border-zinc-700 [&>button]:!text-zinc-300" />
         <MiniMap
           className="!bg-zinc-900 !border-zinc-700 !rounded-lg"
           nodeColor={(node) => {
             const status = (node.data as RoadmapNodeData).status;
             if (status === "completed") return "#10b981";
-            if (status === "in_progress") return "#f59e0b";
-            return "#52525b";
+            if (status === "in_progress") return "#f7b23b";
+            return "#aab4c2";
           }}
         />
         <Panel position="top-left" className="flex gap-2">

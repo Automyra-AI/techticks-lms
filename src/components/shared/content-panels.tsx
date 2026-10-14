@@ -122,14 +122,14 @@ export function NodeDetailPanel({
           </div>
         </div>
 
-        {node.status !== "completed" && node.status !== "locked" && (
+        {canEdit && node.status !== "completed" && node.status !== "locked" && (
           <Button className="w-full" onClick={markComplete} disabled={busy}>
-            {busy ? "Saving…" : canEdit ? "Mark as Complete for the Course" : "Mark as Complete"}
+            {busy ? "Saving…" : "Mark as Covered"}
           </Button>
         )}
         {!canEdit && (
           <p className="text-center text-xs text-zinc-500">
-            This tracks your own progress — the roadmap is managed by your trainer.
+            Your trainer ticks topics off as the class covers them.
           </p>
         )}
       </CardContent>

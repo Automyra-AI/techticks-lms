@@ -111,7 +111,6 @@ export function ResourcesClient({ resources, canAdd }: { resources: Resource[]; 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Resources</h2>
           <p className="text-zinc-400">Videos, PDFs, templates, prompts, and more</p>
         </div>
         {canAdd && (

@@ -21,7 +21,6 @@ export function RoadmapClient({
     <div className="flex h-[calc(100vh-128px)] flex-col gap-4">
       <div className="flex shrink-0 flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Course Roadmap</h2>
           <p className="text-zinc-400">
             Scroll to move through the path · click a topic for details · drag to pan
             {canEdit ? " · drag topics to rearrange" : ""}

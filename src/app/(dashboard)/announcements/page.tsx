@@ -13,7 +13,6 @@ export default async function AnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Announcements</h2>
           <p className="text-zinc-400">Course updates and important notices</p>
         </div>
         {(session?.role === "admin" || session?.role === "trainer") && <CreateAnnouncementButton />}

@@ -59,12 +59,12 @@ export function AssignmentGroupCard({
     <>
       <Card
         onClick={() => setOpen(true)}
-        className="cursor-pointer transition-colors hover:border-violet-500/40"
+        className="cursor-pointer group transition-all duration-200 hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-pop)]"
       >
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+        <CardContent className="flex h-full flex-col gap-4 p-5">
           <div className="min-w-0">
-            <p className="font-semibold text-zinc-100">{title}</p>
-            <p className="mt-1 flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+            <p className="font-semibold text-zinc-100 transition-colors group-hover:text-[var(--accent)]">{title}</p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
               <span className="flex items-center gap-1">
                 <Users className="h-3 w-3" /> {rows.length} submission{rows.length === 1 ? "" : "s"}
               </span>
@@ -75,7 +75,7 @@ export function AssignmentGroupCard({
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="mt-auto flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-3">
             {pending > 0 ? (
               <Badge variant="warning">{pending} to review</Badge>
             ) : (

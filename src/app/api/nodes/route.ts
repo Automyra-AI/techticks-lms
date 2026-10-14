@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { roadmapNodes, lessonProgress } from "@/lib/db/schema";
+import { roadmapNodes } from "@/lib/db/schema";
 import { getSession } from "@/lib/auth";
 
 /**
- * Update a roadmap node.
+ * Mark a roadmap topic as covered.
  *
- * The roadmap itself belongs to the course, so only admins and trainers may
- * change a node's shared status — a student ticking a topic off would otherwise
- * change the roadmap for everyone. A student's "completed" is recorded against
- * their own lesson_progress row instead, which is what their roadmap and
- * dashboard read back.
+ * The roadmap belongs to the course, and topics are ticked off by whoever
+ * teaches them — so this is staff only. Students read the same shared status;
+ * they do not record progress of their own.
  */
 export async function PATCH(request: Request) {
   const session = await getSession();
@@ -23,38 +21,16 @@ export async function PATCH(request: Request) {
   const [node] = await db.select().from(roadmapNodes).where(eq(roadmapNodes.id, body.id)).limit(1);
   if (!node) return NextResponse.json({ error: "That topic no longer exists." }, { status: 404 });
 
-  const isStaff = session.role === "admin" || session.role === "trainer";
+  if (session.role !== "admin" && session.role !== "trainer") {
+    return NextResponse.json(
+      { error: "Only a trainer or admin can mark a topic as covered." },
+      { status: 403 }
+    );
+  }
+
   const status = body.status ?? "completed";
-  const completed = status === "completed";
-
-  // Editing the roadmap — staff only.
-  if (isStaff) {
-    await db.update(roadmapNodes).set({ status }).where(eq(roadmapNodes.id, body.id));
-  }
-
-  // Personal progress — everyone, including staff previewing the course.
-  const [existing] = await db
-    .select()
-    .from(lessonProgress)
-    .where(and(eq(lessonProgress.nodeId, body.id), eq(lessonProgress.userId, session.id)))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(lessonProgress)
-      .set({ progress: completed ? 100 : 45, completed, updatedAt: new Date().toISOString() })
-      .where(eq(lessonProgress.id, existing.id));
-  } else {
-    await db.insert(lessonProgress).values({
-      id: crypto.randomUUID(),
-      userId: session.id,
-      nodeId: body.id,
-      progress: completed ? 100 : 45,
-      completed,
-      updatedAt: new Date().toISOString(),
-    });
-  }
+  await db.update(roadmapNodes).set({ status }).where(eq(roadmapNodes.id, body.id));
 
   const [updated] = await db.select().from(roadmapNodes).where(eq(roadmapNodes.id, body.id));
-  return NextResponse.json({ node: { ...updated, status: isStaff ? updated.status : status } });
+  return NextResponse.json({ node: updated });
 }

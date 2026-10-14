@@ -16,7 +16,6 @@ export default async function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Analytics</h2>
         <p className="text-zinc-400">Student performance, completion rates, and insights</p>
       </div>
 

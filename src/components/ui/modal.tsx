@@ -43,7 +43,7 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--n-50)]/35 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden
       />
@@ -52,7 +52,7 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl",
+          "relative z-10 w-full max-w-lg rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-pop)]",
           className
         )}
       >

@@ -68,7 +68,6 @@ export function SettingsClient({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Settings</h2>
         <p className="text-zinc-400">Manage your profile and preferences</p>
       </div>
 

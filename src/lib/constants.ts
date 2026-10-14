@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Calendar", href: "/calendar", icon: "Calendar", roles: ["admin", "trainer", "student"] },
   { title: "Certificates", href: "/certificates", icon: "GraduationCap", roles: ["admin", "trainer", "student"] },
   { title: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["admin", "trainer"] },
+  { title: "Batches", href: "/batches", icon: "Layers", roles: ["admin", "trainer"] },
   { title: "Users", href: "/users", icon: "Users", roles: ["admin"] },
   { title: "Settings", href: "/settings", icon: "Settings", roles: ["admin", "trainer", "student"] },
 ];

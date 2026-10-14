@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import {
+  getUserBatchId,
   getStudentAttendance,
   getAllSessions,
   getSessionsWithAttendance,
@@ -30,7 +31,6 @@ export default async function AttendancePage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-100">Attendance</h2>
             <p className="text-zinc-400">Create sessions and mark who attended</p>
           </div>
           <CreateSessionButton />
@@ -81,7 +81,8 @@ export default async function AttendancePage() {
   }
 
   // Student view — read-only stats + their own session history.
-  const sessions = await getAllSessions();
+  const batchId = session ? await getUserBatchId(session.id) : null;
+  const sessions = await getAllSessions(batchId);
   const records = session ? await getStudentAttendance(session.id) : [];
   const attendanceMap = new Map(records.map((r) => [r.sessionId, r.status]));
   const presentCount = records.filter((r) => r.status === "present" || r.status === "late").length;
@@ -91,7 +92,6 @@ export default async function AttendancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Attendance</h2>
         <p className="text-zinc-400">Track session attendance and monthly stats</p>
       </div>
 

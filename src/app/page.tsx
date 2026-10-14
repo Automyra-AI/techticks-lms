@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-950 to-violet-950/20">
-      <nav className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-950/60 px-6 py-4 backdrop-blur-sm lg:px-12">
+    <div className="min-h-screen bg-[var(--page)]">
+      <nav className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/90 px-6 py-4 backdrop-blur-sm lg:px-12">
         <div className="flex items-center gap-3">
           <Image
-            src="/techticks-logo-light.png"
+            src="/techticks-logo.png"
             alt="TechTicks"
             width={40}
             height={40}
@@ -34,10 +34,10 @@ export default function LandingPage() {
       </nav>
 
       <section className="relative overflow-hidden px-6 py-24 lg:px-12 lg:py-32">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/30 via-zinc-950 to-zinc-950" />
-        <div className="pointer-events-none absolute -top-24 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-violet-600/20 blur-[120px]" />
-        <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-fuchsia-600/10 blur-[100px]" />
-        <div className="pointer-events-none absolute bottom-0 left-0 h-72 w-72 rounded-full bg-indigo-600/10 blur-[100px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--p-100)] via-[var(--page)] to-[var(--page)]" />
+        <div className="pointer-events-none absolute -top-24 left-1/2 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-[var(--tile-blue)]/10 blur-[120px]" />
+        <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 rounded-full bg-[var(--tile-mint)]/20 blur-[100px]" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-72 w-72 rounded-full bg-[var(--tile-amber)]/15 blur-[100px]" />
         <div className="relative mx-auto max-w-4xl text-center">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 text-sm text-violet-300">
             <Bot className="h-4 w-4" />
@@ -67,9 +67,9 @@ export default function LandingPage() {
       </section>
 
       <section className="relative border-t border-zinc-800/80 px-6 py-20 lg:px-12">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-violet-950/30 via-transparent to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[var(--p-100)] via-transparent to-transparent" />
         <div className="relative mx-auto max-w-6xl">
-          <h2 className="bg-gradient-to-r from-zinc-100 via-violet-200 to-zinc-100 bg-clip-text text-center text-3xl font-bold text-transparent">
+          <h2 className="text-center text-3xl font-bold text-zinc-100">
             Everything You Need to Master AI Automation
           </h2>
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -81,9 +81,9 @@ export default function LandingPage() {
             ].map((feature) => (
               <div
                 key={feature.title}
-                className="group rounded-xl border border-zinc-800 bg-gradient-to-b from-zinc-900/70 to-zinc-900/30 p-6 transition-all hover:border-violet-500/40 hover:from-violet-950/40 hover:shadow-lg hover:shadow-violet-950/40"
+                className="group rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-pop)]"
               >
-                <div className="inline-flex rounded-lg bg-gradient-to-br from-violet-600/20 to-fuchsia-600/10 p-2 ring-1 ring-violet-500/20">
+                <div className="inline-flex rounded-lg bg-[var(--accent-quiet)] p-2 ring-1 ring-[var(--accent)]/15">
                   <feature.icon className="h-6 w-6 text-violet-400" />
                 </div>
                 <h3 className="mt-4 font-semibold text-zinc-100">{feature.title}</h3>
@@ -94,7 +94,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="border-t border-zinc-800/80 bg-gradient-to-b from-transparent to-violet-950/20 px-6 py-8 text-center text-sm text-zinc-500">
+      <footer className="border-t border-[var(--line)] bg-[var(--surface)] px-6 py-8 text-center text-sm text-zinc-500">
         © 2026 TechTicks AI Automation Academy. All rights reserved.
       </footer>
     </div>

@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle2, XCircle, PartyPopper } from "lucide-react";
+import { Confetti } from "@/components/quizzes/confetti";
 
 type Q = { question: string; options: string[] };
 export type ReviewItem = {
@@ -14,7 +16,7 @@ export type ReviewItem = {
   chosenIndex: number;
   correct: boolean;
 };
-type Result = { score: number; total: number; percent: number; passed: boolean; reason: string };
+type Result = { score: number; total: number; percent: number; passed: boolean; reason: string; passingScore: number };
 
 export function TakeQuiz({
   quiz,
@@ -49,14 +51,24 @@ export function TakeQuiz({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(data.error ?? "Failed to submit");
-      if (data.attempt) setResult({ ...data.attempt, percent: 0, reason });
+      if (data.attempt) setResult({ ...data.attempt, percent: 0, passingScore: quiz.passingScore, reason });
       setPhase("result");
       return;
     }
-    setResult({ score: data.score, total: data.total, percent: data.percent, passed: data.passed, reason });
+    setResult({
+      score: data.score,
+      total: data.total,
+      percent: data.percent,
+      passed: data.passed,
+      passingScore: data.passingScore ?? quiz.passingScore,
+      reason,
+    });
     setReview(Array.isArray(data.review) ? data.review : null);
     setPhase("result");
-    router.refresh();
+    // No router.refresh() here: the refresh re-renders the quizzes page, which
+    // swaps this component out for the score badge as soon as an attempt
+    // exists — closing the result screen (and the confetti) immediately.
+    // It runs on dismiss instead, in closeResult().
   }
   const submitRef = useRef(submit);
   submitRef.current = submit;
@@ -100,6 +112,12 @@ export function TakeQuiz({
     };
   }, [phase]);
 
+  /** Closes the result and brings the quizzes page up to date with the attempt. */
+  function closeResult() {
+    setPhase("closed");
+    router.refresh();
+  }
+
   function openIntro() {
     setAnswers(quiz.questions.map(() => -1));
     setSecondsLeft(quiz.timeLimit * 60);
@@ -109,13 +127,16 @@ export function TakeQuiz({
     setPhase("intro");
   }
 
+  const answeredCount = answers.filter((a) => a >= 0).length;
+  const unanswered = quiz.questions.length - answeredCount;
   const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
   const ss = String(secondsLeft % 60).padStart(2, "0");
   const lowTime = secondsLeft <= 60;
 
   const overlay =
     phase === "closed" ? null : (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--n-50)]/70 p-4 backdrop-blur-sm">
+        {phase === "result" && result?.passed && <Confetti />}
         <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
           {phase === "intro" && (
             <div className="space-y-4 p-6">
@@ -138,56 +159,137 @@ export function TakeQuiz({
 
           {phase === "taking" && (
             <>
-              <div className="flex items-center justify-between border-b border-zinc-800 p-4">
-                <div>
-                  <p className="font-semibold text-zinc-100">{quiz.title}</p>
-                  <p className="text-xs text-amber-400/80">Leaving this tab submits your quiz.</p>
+              <div className="border-b border-zinc-800 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-zinc-100">{quiz.title}</p>
+                    <p className="text-xs text-amber-400/80">Leaving this tab submits your quiz.</p>
+                  </div>
+                  <div
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-mono text-lg font-bold tabular-nums ${
+                      lowTime ? "animate-pulse bg-red-500/15 text-red-500" : "bg-[var(--surface-sunk)] text-zinc-200"
+                    }`}
+                  >
+                    <Clock className="h-4 w-4" /> {mm}:{ss}
+                  </div>
                 </div>
-                <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 font-mono text-lg font-bold ${lowTime ? "bg-red-500/15 text-red-400" : "bg-zinc-800 text-zinc-200"}`}>
-                  <Clock className="h-4 w-4" /> {mm}:{ss}
+
+                {/* How far through you are, so the list does not feel endless. */}
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-sunk)]">
+                    <div
+                      className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+                      style={{ width: `${(answeredCount / quiz.questions.length) * 100}%` }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-xs font-medium text-zinc-500">
+                    {answeredCount}/{quiz.questions.length} answered
+                  </span>
                 </div>
               </div>
               <div className="space-y-5 overflow-y-auto p-5">
-                {quiz.questions.map((q, qi) => (
-                  <div key={qi} className="space-y-2">
-                    <p className="font-medium text-zinc-100">{qi + 1}. {q.question}</p>
-                    <div className="space-y-1.5">
-                      {q.options.map((opt, oi) => (
-                        <label key={oi} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2.5 text-sm transition-colors ${answers[qi] === oi ? "border-violet-500/60 bg-violet-500/10 text-zinc-100" : "border-zinc-800 text-zinc-300 hover:border-zinc-700"}`}>
-                          <input
-                            type="radio"
-                            name={`q-${qi}`}
-                            checked={answers[qi] === oi}
-                            onChange={() => setAnswers((a) => a.map((v, i) => (i === qi ? oi : v)))}
-                            className="h-4 w-4 accent-violet-500"
-                          />
-                          {opt}
-                        </label>
-                      ))}
+                {quiz.questions.map((q, qi) => {
+                  const answered = answers[qi] >= 0;
+                  return (
+                    <div
+                      key={qi}
+                      className="rounded-xl border border-zinc-800 bg-[var(--surface)] p-4 shadow-[var(--shadow-card)]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            answered
+                              ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                              : "bg-[var(--surface-sunk)] text-zinc-500"
+                          }`}
+                        >
+                          {qi + 1}
+                        </span>
+                        <p className="font-medium text-zinc-100">{q.question}</p>
+                      </div>
+
+                      <div className="mt-3 space-y-2 pl-9">
+                        {q.options.map((opt, oi) => {
+                          const picked = answers[qi] === oi;
+                          return (
+                            <label
+                              key={oi}
+                              className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-all ${
+                                picked
+                                  ? "border-[var(--accent)] bg-[var(--accent-quiet)] text-zinc-100"
+                                  : "border-zinc-800 text-zinc-300 hover:border-[var(--accent)]/40 hover:bg-[var(--surface-sunk)]"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`q-${qi}`}
+                                checked={picked}
+                                onChange={() => setAnswers((a) => a.map((v, i) => (i === qi ? oi : v)))}
+                                className="sr-only"
+                              />
+                              {/* Lettered chip instead of a native radio — bigger target, clearer state. */}
+                              <span
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
+                                  picked
+                                    ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                                    : "border-zinc-700 text-zinc-500"
+                                }`}
+                              >
+                                {String.fromCharCode(65 + oi)}
+                              </span>
+                              {opt}
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between border-t border-zinc-800 p-4">
-                <span className="text-xs text-zinc-500">{answers.filter((a) => a >= 0).length}/{quiz.questions.length} answered</span>
+              <div className="flex items-center justify-between gap-3 border-t border-zinc-800 p-4">
+                <span className="text-xs text-zinc-500">
+                  {unanswered > 0
+                    ? `${unanswered} question${unanswered === 1 ? "" : "s"} left unanswered`
+                    : "All questions answered"}
+                </span>
                 <Button onClick={() => submit("completed")}>Submit Quiz</Button>
               </div>
             </>
           )}
 
           {phase === "result" && result && (
-            <div className="space-y-4 p-6 text-center">
-              {result.passed ? (
-                <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-400" />
-              ) : (
-                <XCircle className="mx-auto h-14 w-14 text-red-400" />
-              )}
-              <div>
-                <p className="text-2xl font-bold text-zinc-100">{result.score}/{result.total} correct</p>
-                <p className={`mt-1 font-semibold ${result.passed ? "text-emerald-400" : "text-red-400"}`}>
-                  {result.passed ? "Passed" : "Not passed"}
-                </p>
+            <div className="space-y-4 overflow-y-auto p-6 text-center">
+              <div className="flex items-center justify-center gap-4">
+                <Image
+                  src={result.passed ? "/streak-happy.webp" : "/streak-sad.webp"}
+                  alt=""
+                  width={96}
+                  height={72}
+                  className="h-auto w-[84px] drop-shadow-md"
+                />
+                <ScoreRing percent={result.percent} passed={result.passed} />
               </div>
+
+              {result.passed ? (
+                <div className="space-y-1">
+                  <p className="flex items-center justify-center gap-2 text-2xl font-bold text-emerald-500">
+                    <PartyPopper className="h-6 w-6" /> Congratulations!
+                  </p>
+                  <p className="text-sm text-zinc-400">
+                    You passed with {result.score} of {result.total} correct.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="flex items-center justify-center gap-2 text-2xl font-bold text-zinc-100">
+                    <XCircle className="h-6 w-6 text-red-500" /> Not passed
+                  </p>
+                  <p className="text-sm text-zinc-400">
+                    {result.score} of {result.total} correct — {result.passingScore}% was needed. Review the
+                    answers below.
+                  </p>
+                </div>
+              )}
               {result.reason === "tab_switch" && (
                 <p className="text-sm text-amber-400">Auto-submitted because you left the quiz tab.</p>
               )}
@@ -198,7 +300,7 @@ export function TakeQuiz({
 
               {review && <QuizReview review={review} />}
 
-              <Button onClick={() => setPhase("closed")}>Done</Button>
+              <Button onClick={closeResult}>Done</Button>
             </div>
           )}
         </div>
@@ -259,6 +361,38 @@ export function QuizReview({ review }: { review: ReviewItem[] }) {
             </ul>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Circular score readout — the headline number on the result screen. */
+function ScoreRing({ percent, passed }: { percent: number; passed: boolean }) {
+  const r = 46;
+  const circumference = 2 * Math.PI * r;
+  const filled = Math.max(0, Math.min(100, percent)) / 100;
+  const stroke = passed ? "#10b981" : "#ef4444";
+
+  return (
+    <div className="relative mx-auto h-32 w-32">
+      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--surface-sunk)" strokeWidth="10" />
+        <circle
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - filled)}
+          style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold tabular-nums text-zinc-100">{percent}%</span>
+        {passed && <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />}
       </div>
     </div>
   );

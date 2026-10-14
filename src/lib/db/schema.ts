@@ -12,6 +12,8 @@ export const users = sqliteTable("users", {
   linkedin: text("linkedin"),
   portfolio: text("portfolio"),
   enrollmentDate: text("enrollment_date"),
+  // Which cohort this student runs with. Staff accounts leave it null.
+  batchId: text("batch_id"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -23,6 +25,16 @@ export const courses = sqliteTable("courses", {
   trainerId: text("trainer_id").references(() => users.id),
   status: text("status", { enum: ["draft", "published", "archived"] }).default("published"),
   price: real("price").default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+export const batches = sqliteTable("batches", {
+  id: text("id").primaryKey(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  name: text("name").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  status: text("status", { enum: ["upcoming", "active", "completed"] }).default("active"),
   createdAt: text("created_at").notNull(),
 });
 
@@ -67,6 +79,7 @@ export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
   weekId: text("week_id").references(() => weeks.id),
   courseId: text("course_id").references(() => courses.id).notNull(),
+  batchId: text("batch_id"),
   title: text("title").notNull(),
   description: text("description"),
   videoUrl: text("video_url"),
@@ -82,6 +95,8 @@ export const sessions = sqliteTable("sessions", {
 export const assignments = sqliteTable("assignments", {
   id: text("id").primaryKey(),
   courseId: text("course_id").references(() => courses.id).notNull(),
+  // Scoped to one batch, or null to show it to every batch.
+  batchId: text("batch_id"),
   weekId: text("week_id").references(() => weeks.id),
   nodeId: text("node_id").references(() => roadmapNodes.id),
   title: text("title").notNull(),
@@ -150,6 +165,7 @@ export const resources = sqliteTable("resources", {
 
 export const announcements = sqliteTable("announcements", {
   id: text("id").primaryKey(),
+  batchId: text("batch_id"),
   courseId: text("course_id").references(() => courses.id),
   authorId: text("author_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
@@ -190,6 +206,7 @@ export const weeklyRemarks = sqliteTable("weekly_remarks", {
 export const quizzes = sqliteTable("quizzes", {
   id: text("id").primaryKey(),
   courseId: text("course_id").references(() => courses.id).notNull(),
+  batchId: text("batch_id"),
   nodeId: text("node_id").references(() => roadmapNodes.id),
   title: text("title").notNull(),
   questions: text("questions").notNull(),
@@ -233,3 +250,4 @@ export type Course = typeof courses.$inferSelect;
 export type RoadmapNode = typeof roadmapNodes.$inferSelect;
 export type Assignment = typeof assignments.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
+export type Batch = typeof batches.$inferSelect;

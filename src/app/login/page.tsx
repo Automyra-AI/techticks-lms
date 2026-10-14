@@ -51,13 +51,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-violet-900/10 via-zinc-950 to-zinc-950" />
+    <div className="flex min-h-screen items-center justify-center bg-[var(--page)] px-4">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[var(--p-100)] via-[var(--page)] to-[var(--page)]" />
 
       <Card className="relative w-full max-w-md">
         <CardHeader className="text-center">
           <Image
-            src="/techticks-logo-light.png"
+            src="/techticks-logo.png"
             alt="TechTicks"
             width={56}
             height={56}

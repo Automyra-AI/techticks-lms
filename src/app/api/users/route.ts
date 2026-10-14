@@ -51,6 +51,8 @@ export async function POST(request: Request) {
     role: body.role,
     phone: body.phone ?? null,
     github: body.github ?? null,
+    // Only students belong to a cohort; staff accounts leave it null.
+    batchId: body.role === "student" ? body.batchId || null : null,
     createdAt: new Date().toISOString(),
   });
 
@@ -90,6 +92,7 @@ export async function PATCH(request: Request) {
       role: body.role,
       phone: body.phone ?? null,
       github: body.github ?? null,
+      batchId: body.role === "student" ? body.batchId || null : null,
     })
     .where(eq(users.id, body.id));
 

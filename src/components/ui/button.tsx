@@ -6,10 +6,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-violet-600 text-white hover:bg-violet-500 shadow-lg shadow-violet-600/20",
-        secondary: "bg-zinc-800 text-zinc-100 hover:bg-zinc-700 border border-zinc-700",
-        ghost: "hover:bg-zinc-800 text-zinc-300",
-        outline: "border border-zinc-700 bg-transparent hover:bg-zinc-800 text-zinc-200",
+        default: "bg-[var(--accent)] text-[var(--accent-ink)] hover:bg-[var(--accent-hover)] shadow-[var(--shadow-card)]",
+        secondary: "bg-[var(--surface)] text-zinc-200 hover:bg-[var(--surface-sunk)] border border-[var(--line-strong)]",
+        ghost: "text-zinc-400 hover:bg-[var(--accent-quiet)] hover:text-zinc-100",
+        outline: "border border-[var(--line-strong)] bg-transparent text-zinc-200 hover:border-[var(--accent)] hover:text-zinc-100",
         destructive: "bg-red-600 text-white hover:bg-red-500",
       },
       size: {

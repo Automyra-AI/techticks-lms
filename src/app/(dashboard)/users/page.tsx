@@ -1,4 +1,4 @@
-import { getUsers } from "@/lib/data";
+import { getUsers, getBatchesWithCounts } from "@/lib/data";
 import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { AddUserButton, DeleteUserButton, EditUserButton } from "@/components/users/user-actions";
@@ -6,16 +6,17 @@ import { Mail, GitBranch } from "lucide-react";
 
 export default async function UsersPage() {
   const session = await getSession();
-  const allUsers = await getUsers();
+  const [allUsers, batchList] = await Promise.all([getUsers(), getBatchesWithCounts()]);
+  const batchOptions = batchList.map((b) => ({ id: b.id, name: b.name }));
+  const batchName = new Map(batchList.map((b) => [b.id, b.name]));
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Users</h2>
           <p className="text-zinc-400">Manage admins, trainers, and students</p>
         </div>
-        <AddUserButton />
+        <AddUserButton batches={batchOptions} />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-zinc-800">
@@ -25,6 +26,7 @@ export default async function UsersPage() {
               <th className="p-4 font-medium">Name</th>
               <th className="p-4 font-medium">Email</th>
               <th className="p-4 font-medium">Role</th>
+              <th className="p-4 font-medium">Batch</th>
               <th className="p-4 font-medium">Links</th>
               <th className="p-4 text-right font-medium">Actions</th>
             </tr>
@@ -50,6 +52,17 @@ export default async function UsersPage() {
                     {user.role}
                   </Badge>
                 </td>
+                <td className="p-4 text-sm">
+                  {user.role === "student" ? (
+                    user.batchId && batchName.has(user.batchId) ? (
+                      <span className="text-zinc-300">{batchName.get(user.batchId)}</span>
+                    ) : (
+                      <span className="text-amber-500">Not assigned</span>
+                    )
+                  ) : (
+                    <span className="text-zinc-600">—</span>
+                  )}
+                </td>
                 <td className="p-4">
                   {user.github && (
                     <a href={user.github} className="text-violet-400 hover:underline">
@@ -59,7 +72,7 @@ export default async function UsersPage() {
                 </td>
                 <td className="p-4">
                   <div className="flex items-center justify-end gap-1">
-                    <EditUserButton user={user} />
+                    <EditUserButton user={user} batches={batchOptions} />
                     {/* No delete control on your own row — the API refuses it anyway. */}
                     {user.id !== session?.id && <DeleteUserButton user={user} />}
                   </div>

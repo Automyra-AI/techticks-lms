@@ -18,7 +18,6 @@ export default async function QuizzesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-zinc-100">Quizzes</h2>
             <p className="text-zinc-400">Create timed, auto-graded quizzes for students</p>
           </div>
           <CreateQuizButton />
@@ -29,7 +28,7 @@ export default async function QuizzesPage() {
             No quizzes yet. Create one to get started.
           </p>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {quizzes.map((q) => (
               <QuizCard key={q.id} quiz={q} />
             ))}
@@ -44,7 +43,6 @@ export default async function QuizzesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Quizzes</h2>
         <p className="text-zinc-400">Timed quizzes — one attempt each, no switching tabs</p>
       </div>
 
@@ -53,19 +51,19 @@ export default async function QuizzesPage() {
           No quizzes available yet.
         </p>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {quizzes.map((q) => (
-            <Card key={q.id}>
-              <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <Card key={q.id} className="group transition-all duration-200 hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:shadow-[var(--shadow-pop)]">
+              <CardContent className="flex h-full flex-col gap-4 p-5">
                 <div className="min-w-0">
-                  <p className="font-semibold text-zinc-100">{q.title}</p>
-                  <p className="mt-1 flex flex-wrap gap-4 text-xs text-zinc-500">
+                  <p className="font-semibold text-zinc-100 transition-colors group-hover:text-[var(--accent)]">{q.title}</p>
+                  <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
                     <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3" /> {q.questionCount} questions</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {q.timeLimit} min</span>
                     <span>Pass: {q.passingScore}%</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
                   {q.attempt ? (
                     <>
                       <span className="text-sm font-bold text-violet-400">{q.attempt.score}/{q.attempt.total}</span>

@@ -18,7 +18,6 @@ export default async function CoursesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Courses</h2>
           <p className="text-zinc-400">Manage and explore courses</p>
         </div>
         {(session?.role === "admin" || session?.role === "trainer") && <CreateCourseButton />}

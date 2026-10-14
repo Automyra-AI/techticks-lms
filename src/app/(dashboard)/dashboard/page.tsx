@@ -4,6 +4,9 @@ import {
   getChartData,
   getRecentActivities,
   getStudentProgressBreakdown,
+  getStudentStreak,
+  getStudentBadges,
+  getCertificateProgress,
 } from "@/lib/data";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
@@ -11,22 +14,28 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) return null;
 
-  const [stats, chartData, activities, progress] = await Promise.all([
+  const isStudent = session.role === "student";
+  const [stats, chartData, activities, progress, streak, badges, certificate] = await Promise.all([
     getDashboardStats(session),
     getChartData(),
     getRecentActivities(session),
-    session.role === "student"
-      ? getStudentProgressBreakdown(session.id)
-      : Promise.resolve(null),
+    isStudent ? getStudentProgressBreakdown(session.id) : Promise.resolve(null),
+    isStudent ? getStudentStreak(session.id) : Promise.resolve(null),
+    isStudent ? getStudentBadges(session.id) : Promise.resolve(null),
+    isStudent ? getCertificateProgress(session.id) : Promise.resolve(null),
   ]);
 
   return (
     <DashboardClient
       stats={stats}
       role={session.role}
+      userName={session.name}
       chartData={chartData}
       activities={activities}
       progress={progress}
+      streak={streak}
+      badges={badges}
+      certificate={certificate}
     />
   );
 }

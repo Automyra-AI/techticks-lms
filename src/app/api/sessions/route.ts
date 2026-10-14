@@ -32,6 +32,7 @@ export async function POST(request: Request) {
   await db.insert(sessions).values({
     id,
     courseId,
+    batchId: body.batchId || null,
     title: body.title,
     description: body.description || null,
     scheduledAt: body.scheduledAt || null,

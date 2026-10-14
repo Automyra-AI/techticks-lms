@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Plus, Trash2, Pencil, X } from "lucide-react";
+import { BatchSelect } from "@/components/shared/batch-select";
 
 type QB = { question: string; options: string[]; correctIndex: number };
 
@@ -20,7 +21,7 @@ function QuizForm({
   onCancel,
 }: {
   mode: "create" | "edit";
-  initial?: { id: string; title: string; timeLimit: number; passingScore: number; questions: QB[] };
+  initial?: { id: string; title: string; timeLimit: number; passingScore: number; questions: QB[]; batchId?: string | null };
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -29,6 +30,7 @@ function QuizForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [timeLimit, setTimeLimit] = useState(String(initial?.timeLimit ?? 10));
   const [passingScore, setPassingScore] = useState(String(initial?.passingScore ?? 70));
+  const [batchId, setBatchId] = useState(initial?.batchId ?? "");
   const [questions, setQuestions] = useState<QB[]>(
     initial?.questions?.length ? initial.questions.map((q) => ({ ...q, options: [...q.options] })) : [blankQuestion()]
   );
@@ -79,6 +81,7 @@ function QuizForm({
       title,
       timeLimit: Number(timeLimit),
       passingScore: Number(passingScore),
+      batchId,
       questions,
     };
     const res = await fetch("/api/quizzes", {
@@ -111,6 +114,8 @@ function QuizForm({
           <Input type="number" min="1" max="100" value={passingScore} onChange={(e) => setPassingScore(e.target.value)} />
         </div>
       </div>
+
+      <BatchSelect value={batchId} onChange={setBatchId} />
 
       <div className="space-y-3">
         <Label>Questions</Label>

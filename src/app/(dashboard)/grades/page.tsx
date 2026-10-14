@@ -37,7 +37,6 @@ export default async function GradesPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Grading</h2>
           <p className="text-zinc-400">Review student submissions and assign marks &amp; feedback</p>
         </div>
 
@@ -61,7 +60,7 @@ export default async function GradesPage() {
             No submissions yet.
           </p>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {groups.map((g) => (
               <AssignmentGroupCard key={g.assignmentId} title={g.title} rows={g.rows} />
             ))}
@@ -83,7 +82,6 @@ export default async function GradesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Grades</h2>
         <p className="text-zinc-400">Assignment scores and feedback overview</p>
       </div>
 

@@ -6,11 +6,13 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, Select } from "@/components/ui/input";
 import { Plus, Upload, Pencil, Trash2, Paperclip } from "lucide-react";
+import { BatchSelect } from "@/components/shared/batch-select";
 
 const MAX_FILE_MB = 3;
 
 type AssignmentFormValues = {
   id?: string;
+  batchId?: string | null;
   title: string;
   description?: string | null;
   dueDate?: string | null;
@@ -56,6 +58,7 @@ function AssignmentForm({
     difficulty: initial?.difficulty ?? "medium",
     submissionFormat: initial?.submissionFormat ?? "Google Drive Link",
     attachmentUrl: initial?.attachmentUrl ?? "",
+    batchId: initial?.batchId ?? "",
   });
 
   const existingFileName = initial?.attachmentName ?? null;
@@ -85,6 +88,7 @@ function AssignmentForm({
       difficulty: form.difficulty,
       submissionFormat: form.submissionFormat,
       attachmentUrl: form.attachmentUrl.trim(),
+      batchId: form.batchId,
     };
     // A newly picked upload replaces any prior uploaded file, but the link
     // (attachmentUrl) is kept independently so an assignment can have both.
@@ -147,6 +151,8 @@ function AssignmentForm({
           </Select>
         </div>
       </div>
+
+      <BatchSelect value={form.batchId} onChange={(batchId) => setForm({ ...form, batchId })} />
 
       {/* Assignment file — upload a file and/or paste a link. Students open this. */}
       <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">

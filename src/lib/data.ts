@@ -16,6 +16,7 @@ import {
   weeks,
   weeklyRemarks,
   lessonProgress,
+  batches,
   quizzes,
   quizAttempts,
 } from "./db/schema";
@@ -23,6 +24,20 @@ import type { DashboardStats } from "@/types";
 import type { SessionUser } from "./auth";
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * The calendar day an instant falls on, in the course's timezone.
+ *
+ * Slicing a UTC ISO string credits anyone studying after midnight local time to
+ * the previous day — in Pakistan (UTC+5) that is every late-night session,
+ * which would silently break streaks.
+ */
+const COURSE_UTC_OFFSET_MINUTES = 5 * 60; // Asia/Karachi
+export function localDay(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return new Date(d.getTime() + COURSE_UTC_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
+}
 
 /** % attended (present or late) across attendance rows; "—" when there are none. */
 function attendancePercent(rows: { status: string | null }[]): string {
@@ -96,24 +111,36 @@ export async function getTrainerStats(trainerId: string): Promise<DashboardStats
 
 export async function getStudentStats(userId: string): Promise<DashboardStats[]> {
   const [enrollment] = await db.select().from(enrollments).where(eq(enrollments.userId, userId)).limit(1);
-  const [userSubmissions, myProgress, myAttendance, allAssignments] = await Promise.all([
+  const batchId = await getUserBatchId(userId);
+  const [userSubmissions, nodeRows, myAttendance, everyAssignment] = await Promise.all([
     db.select().from(submissions).where(eq(submissions.studentId, userId)),
-    db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
+    db.select().from(roadmapNodes),
     db.select().from(attendance).where(eq(attendance.studentId, userId)),
     db.select().from(assignments),
   ]);
+  // Work from another batch is invisible to this student, so it must not count
+  // against them in "due" or towards the certificate.
+  const allAssignments = everyAssignment.filter((a) => visibleToBatch(a.batchId, batchId));
 
   const submittedIds = new Set(userSubmissions.map((s) => s.assignmentId));
   const dueAssignments = allAssignments.filter((a) => !submittedIds.has(a.id)).length;
-  const completedLessons = myProgress.filter((p) => p.completed).length;
+  // Topics are ticked off by the trainer for the whole class, so "completed"
+  // is course progress, not something the student marks themselves.
+  const completedLessons = nodeRows.filter((n) => n.status === "completed").length;
 
   const reviewed = userSubmissions
     .filter((s) => s.reviewedAt)
     .sort((a, b) => (b.reviewedAt ?? "").localeCompare(a.reviewedAt ?? ""))[0];
   const latestFeedback = reviewed?.marks != null ? `${reviewed.marks}` : "—";
 
+  // Same source as the Course Progress card: topics the trainer has covered.
+  // `enrollments.progress` is never written to, so reading it showed 0% forever.
+  const coursePercent = nodeRows.length
+    ? Math.round((completedLessons / nodeRows.length) * 100)
+    : (enrollment?.progress ?? 0);
+
   return [
-    { label: "Course Progress", value: `${enrollment?.progress ?? 0}%`, trend: "neutral" },
+    { label: "Course Progress", value: `${coursePercent}%`, trend: "neutral" },
     { label: "Assignments Due", value: dueAssignments, trend: "neutral" },
     { label: "Completed Lessons", value: completedLessons, trend: "neutral" },
     { label: "Attendance", value: attendancePercent(myAttendance), trend: "neutral" },
@@ -143,32 +170,9 @@ export async function getRoadmapNodes(courseId?: string) {
   return db.select().from(roadmapNodes).where(eq(roadmapNodes.courseId, firstCourse.id)).orderBy(roadmapNodes.orderIndex);
 }
 
-/**
- * The roadmap as one student sees it: course topics with the shared status
- * replaced by that student's own lesson progress, so ticking a topic off never
- * changes what other students see.
- */
-export async function getRoadmapNodesForStudent(userId: string, courseId?: string) {
-  const [nodeRows, myProgress] = await Promise.all([
-    getRoadmapNodes(courseId),
-    db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
-  ]);
-  const progressByNode = new Map(myProgress.map((p) => [p.nodeId, p]));
-
-  return nodeRows.map((node) => {
-    const mine = progressByNode.get(node.id);
-    return {
-      ...node,
-      status: mine?.completed ? ("completed" as const) : mine ? ("in_progress" as const) : ("not_started" as const),
-      myProgress: mine?.progress ?? 0,
-    };
-  });
-}
-
 export async function getAllCourses() {
   return db.select().from(courses);
 }
-
 /** Each course with its real student count, lesson (roadmap node) count, and avg progress. */
 export async function getCoursesWithStats() {
   const [courseRows, enrollRows, nodeRows] = await Promise.all([
@@ -187,15 +191,18 @@ export async function getCoursesWithStats() {
   });
 }
 
-/** Overall + per-week progress for a student, derived from roadmap node completion. */
+/**
+ * Overall and per-week progress.
+ *
+ * Topics are ticked off by the trainer for the whole class, so progress is read
+ * from the shared roadmap rather than from anything the student marks.
+ */
 export async function getStudentProgressBreakdown(userId: string) {
   const [enrollment] = await db.select().from(enrollments).where(eq(enrollments.userId, userId)).limit(1);
-  const [nodeRows, myProgress] = await Promise.all([
-    db.select().from(roadmapNodes).orderBy(roadmapNodes.orderIndex),
-    db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
-  ]);
+  const nodeRows = await db.select().from(roadmapNodes).orderBy(roadmapNodes.orderIndex);
 
-  const completedNodeIds = new Set(myProgress.filter((p) => p.completed).map((p) => p.nodeId));
+  const completed = nodeRows.filter((n) => n.status === "completed").length;
+  const overall = nodeRows.length ? Math.round((completed / nodeRows.length) * 100) : (enrollment?.progress ?? 0);
 
   // Group nodes by their "Week …" label (parsed from the description prefix).
   const weekMap = new Map<string, { total: number; done: number }>();
@@ -203,7 +210,7 @@ export async function getStudentProgressBreakdown(userId: string) {
     const label = (n.description ?? "").split("·")[0].trim() || "Other";
     const bucket = weekMap.get(label) ?? { total: 0, done: 0 };
     bucket.total += 1;
-    if (completedNodeIds.has(n.id)) bucket.done += 1;
+    if (n.status === "completed") bucket.done += 1;
     weekMap.set(label, bucket);
   }
 
@@ -212,13 +219,13 @@ export async function getStudentProgressBreakdown(userId: string) {
     progress: b.total ? Math.round((b.done / b.total) * 100) : 0,
   }));
 
-  return { overall: enrollment?.progress ?? 0, weekProgress };
+  return { overall, weekProgress };
 }
 
-export async function getAllAssignments() {
+export async function getAllAssignments(batchId?: string | null) {
   // Exclude the (potentially large) base64 attachmentData from the list; expose
   // a hasFile flag so the UI can link to the file-serving route instead.
-  return db
+  const rows = await db
     .select({
       id: assignments.id,
       courseId: assignments.courseId,
@@ -231,10 +238,14 @@ export async function getAllAssignments() {
       attachmentUrl: assignments.attachmentUrl,
       attachmentName: assignments.attachmentName,
       hasFile: sql<number>`case when ${assignments.attachmentData} is not null then 1 else 0 end`,
+      batchId: assignments.batchId,
       createdAt: assignments.createdAt,
     })
     .from(assignments)
     .orderBy(desc(assignments.createdAt));
+
+  if (batchId === undefined) return rows;
+  return rows.filter((a) => visibleToBatch(a.batchId, batchId));
 }
 
 export async function getStudentSubmissions(studentId: string) {
@@ -316,12 +327,16 @@ export async function getSubmissionsForGrading() {
     });
 }
 
-export async function getAllSessions() {
-  return db.select().from(sessions).orderBy(sessions.scheduledAt);
+export async function getAllSessions(batchId?: string | null) {
+  const rows = await db.select().from(sessions).orderBy(sessions.scheduledAt);
+  if (batchId === undefined) return rows;
+  return rows.filter((x) => visibleToBatch(x.batchId, batchId));
 }
 
-export async function getAnnouncements() {
-  return db.select().from(announcements).orderBy(desc(announcements.createdAt));
+export async function getAnnouncements(batchId?: string | null) {
+  const rows = await db.select().from(announcements).orderBy(desc(announcements.createdAt));
+  if (batchId === undefined) return rows;
+  return rows.filter((a) => visibleToBatch(a.batchId, batchId));
 }
 
 export async function getResources() {
@@ -401,13 +416,186 @@ export async function getWeeklyRemarks(studentId: string) {
 }
 
 /** Real certificate-requirement status for a student. */
+/**
+ * Daily study streak, built from the timestamps already recorded elsewhere:
+ * ticking off a roadmap topic, submitting work, sitting a quiz, or being marked
+ * present. Any of those counts as "studied today".
+ *
+ * The streak survives today being empty — it counts back from yesterday — so a
+ * student doesn't watch it reset at midnight before they've had a chance.
+ */
+/**
+ * Every calendar day this student did something themselves.
+ *
+ * Only their own actions count. Attendance is recorded BY a trainer, so it says
+ * the class ran, not that the student studied — counting it would hand out
+ * streaks nobody earned.
+ */
+/**
+ * The current instant, read once per request.
+ *
+ * Reading the clock inside a component body counts as an impure call during
+ * render; taking it from an awaited helper keeps render pure and gives the
+ * whole page one consistent "now".
+ */
+export async function getNow() {
+  const iso = new Date().toISOString();
+  return { iso, day: localDay(iso), ms: Date.parse(iso) };
+}
+
+export async function getStudentActivityDays(userId: string) {
+  const [subRows, attemptRows] = await Promise.all([
+    db.select().from(submissions).where(eq(submissions.studentId, userId)),
+    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
+  ]);
+
+  const day = (iso?: string | null) => (iso ? localDay(iso) : null);
+  return new Set<string>(
+    [
+      ...subRows.flatMap((x) => [day(x.submittedAt), day(x.updatedAt)]),
+      ...attemptRows.map((a) => day(a.submittedAt)),
+    ].filter((d): d is string => Boolean(d))
+  );
+}
+
+export async function getStudentStreak(userId: string) {
+  const active = await getStudentActivityDays(userId);
+
+  const iso = (d: Date) => localDay(d.toISOString());
+  const today = new Date();
+  const todayKey = iso(today);
+
+  // Count back from today, or from yesterday if nothing has happened yet today.
+  const cursor = new Date(today);
+  if (!active.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
+
+  let current = 0;
+  while (active.has(iso(cursor))) {
+    current += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  // The last seven days, oldest first, for the day-by-day strip.
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      label: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][d.getDay()],
+      date: iso(d),
+      active: active.has(iso(d)),
+      isToday: iso(d) === todayKey,
+    };
+  });
+
+  return { current, studiedToday: active.has(todayKey), week, totalDays: active.size };
+}
+
+export type Badge = {
+  id: string;
+  label: string;
+  description: string;
+  earned: boolean;
+  progress?: string;
+};
+
+/**
+ * Achievements, all derived from existing records — nothing is stored, so a
+ * badge can never drift out of step with the data behind it.
+ */
+export async function getStudentBadges(userId: string): Promise<Badge[]> {
+  const [progressRows, subRows, attemptRows, nodeRows, streak] = await Promise.all([
+    db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
+    db.select().from(submissions).where(eq(submissions.studentId, userId)),
+    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
+    db.select().from(roadmapNodes),
+    getStudentStreak(userId),
+  ]);
+
+  const completed = progressRows.filter((p) => p.completed).length;
+  const approved = subRows.filter((s) => s.status === "approved").length;
+  const perfectQuiz = attemptRows.some((a) => a.total > 0 && a.score === a.total);
+  const passedQuiz = attemptRows.filter((a) => a.passed).length;
+
+  // "Week 1" topics, matched on the week prefix the roadmap descriptions carry.
+  const weekOneIds = nodeRows
+    .filter((n) => /^week 1\b/i.test((n.description ?? "").split("·")[0].trim()))
+    .map((n) => n.id);
+  const weekOneDone =
+    weekOneIds.length > 0 &&
+    weekOneIds.every((id) => progressRows.some((p) => p.nodeId === id && p.completed));
+
+  return [
+    {
+      id: "first-steps",
+      label: "First Steps",
+      description: "Complete your first topic",
+      earned: completed >= 1,
+      progress: `${Math.min(completed, 1)}/1`,
+    },
+    {
+      id: "first-submission",
+      label: "Handed In",
+      description: "Submit your first assignment",
+      earned: subRows.length >= 1,
+      progress: `${Math.min(subRows.length, 1)}/1`,
+    },
+    {
+      id: "week-one",
+      label: "Week One Done",
+      description: "Finish every Week 1 topic",
+      earned: weekOneDone,
+      progress: weekOneIds.length
+        ? `${weekOneIds.filter((id) => progressRows.some((p) => p.nodeId === id && p.completed)).length}/${weekOneIds.length}`
+        : undefined,
+    },
+    {
+      id: "streak-7",
+      label: "Seven Day Streak",
+      description: "Study seven days running",
+      earned: streak.current >= 7,
+      progress: `${Math.min(streak.current, 7)}/7`,
+    },
+    {
+      id: "quiz-ace",
+      label: "Quiz Ace",
+      description: "Score full marks on a quiz",
+      earned: perfectQuiz,
+      progress: passedQuiz ? `${passedQuiz} passed` : undefined,
+    },
+    {
+      id: "ten-topics",
+      label: "Getting Serious",
+      description: "Complete ten topics",
+      earned: completed >= 10,
+      progress: `${Math.min(completed, 10)}/10`,
+    },
+    {
+      id: "approved-three",
+      label: "Trusted Work",
+      description: "Get three assignments approved",
+      earned: approved >= 3,
+      progress: `${Math.min(approved, 3)}/3`,
+    },
+    {
+      id: "halfway",
+      label: "Halfway There",
+      description: "Complete half the roadmap",
+      earned: nodeRows.length > 0 && completed >= Math.ceil(nodeRows.length / 2),
+      progress: nodeRows.length ? `${completed}/${Math.ceil(nodeRows.length / 2)}` : undefined,
+    },
+  ];
+}
+
 export async function getCertificateProgress(userId: string) {
-  const [attRows, assignmentRows, subRows, attemptRows] = await Promise.all([
+  const batchId = await getUserBatchId(userId);
+  const [attRows, everyAssignment, subRows, attemptRows] = await Promise.all([
     db.select().from(attendance).where(eq(attendance.studentId, userId)),
     db.select().from(assignments),
     db.select().from(submissions).where(eq(submissions.studentId, userId)),
     db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
   ]);
+  // Only this student's batch counts — they can't submit work they never see.
+  const assignmentRows = everyAssignment.filter((a) => visibleToBatch(a.batchId, batchId));
 
   // Attendance ≥ 90%
   const attended = attRows.filter((a) => a.status === "present" || a.status === "late").length;
@@ -504,10 +692,12 @@ export async function getQuizzesForStaff() {
  * never reach the browser — plus this student's attempt result if any.
  */
 export async function getQuizzesForStudent(studentId: string) {
-  const [quizRows, attemptRows] = await Promise.all([
+  const [allQuizRows, attemptRows, batchId] = await Promise.all([
     db.select().from(quizzes).orderBy(desc(quizzes.createdAt)),
     db.select().from(quizAttempts).where(eq(quizAttempts.studentId, studentId)),
+    getUserBatchId(studentId),
   ]);
+  const quizRows = allQuizRows.filter((q) => visibleToBatch(q.batchId, batchId));
   const attemptByQuiz = new Map(attemptRows.map((a) => [a.quizId, a]));
   return quizRows.map((q) => {
     const questions = parseQuestions(q.questions);
@@ -656,4 +846,43 @@ export async function getChartData() {
     .map(([num, b]) => ({ week: `W${num}`, attendance: Math.round((b.attended / b.total) * 100) }));
 
   return { studentGrowth, courseCompletion, weeklyAttendance };
+}
+
+/** Batches with their student counts, for the management screen. */
+export async function getBatchesWithCounts() {
+  const [batchRows, studentRows] = await Promise.all([
+    db.select().from(batches),
+    db.select({ id: users.id, batchId: users.batchId }).from(users).where(eq(users.role, "student")),
+  ]);
+
+  return batchRows
+    .map((b) => ({
+      ...b,
+      studentCount: studentRows.filter((u) => u.batchId === b.id).length,
+    }))
+    .sort((a, b) => (b.startDate ?? "").localeCompare(a.startDate ?? "") || a.name.localeCompare(b.name));
+}
+
+/** Students not yet placed in a batch — worth flagging, they see unscoped work only. */
+export async function getUnassignedStudentCount() {
+  const rows = await db
+    .select({ batchId: users.batchId })
+    .from(users)
+    .where(eq(users.role, "student"));
+  return rows.filter((u) => !u.batchId).length;
+}
+
+/**
+ * The batch a student belongs to, or null for staff and unassigned students.
+ * Content carrying a different batchId is hidden from them; content with no
+ * batchId belongs to everyone.
+ */
+export async function getUserBatchId(userId: string) {
+  const [row] = await db.select({ batchId: users.batchId }).from(users).where(eq(users.id, userId)).limit(1);
+  return row?.batchId ?? null;
+}
+
+/** True when a row scoped to `rowBatchId` should be visible to `batchId`. */
+export function visibleToBatch(rowBatchId: string | null, batchId: string | null) {
+  return !rowBatchId || rowBatchId === batchId;
 }

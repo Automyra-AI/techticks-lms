@@ -7,7 +7,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500",
+        "flex h-10 w-full rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-quiet)]",
         className
       )}
       {...props}
@@ -22,7 +22,7 @@ export function Textarea({
   return (
     <textarea
       className={cn(
-        "flex min-h-[100px] w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500",
+        "flex min-h-[100px] w-full rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-quiet)]",
         className
       )}
       {...props}
@@ -50,7 +50,7 @@ export function Select({
   return (
     <select
       className={cn(
-        "flex h-10 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500",
+        "flex h-10 w-full rounded-lg border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2 text-sm text-zinc-100 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-quiet)]",
         className
       )}
       {...props}

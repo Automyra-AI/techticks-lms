@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, Select } from "@/components/ui/input";
 import { Plus, Trash2, ClipboardCheck } from "lucide-react";
+import { BatchSelect } from "@/components/shared/batch-select";
 
 type Student = { id: string; name: string; email: string };
 const STATUSES = ["present", "late", "absent", "excused"] as const;
@@ -26,6 +27,7 @@ export function CreateSessionButton() {
     duration: "90",
     meetingPlatform: "zoom",
     meetingUrl: "",
+    batchId: "",
   });
 
   async function submit(e: React.FormEvent) {
@@ -44,6 +46,7 @@ export function CreateSessionButton() {
         duration: Number(form.duration),
         meetingPlatform: form.meetingPlatform,
         meetingUrl: form.meetingUrl,
+        batchId: form.batchId,
       }),
     });
     setBusy(false);
@@ -53,7 +56,7 @@ export function CreateSessionButton() {
       return;
     }
     setOpen(false);
-    setForm({ title: "", description: "", date: "", time: "", duration: "90", meetingPlatform: "zoom", meetingUrl: "" });
+    setForm({ title: "", description: "", date: "", time: "", duration: "90", meetingPlatform: "zoom", meetingUrl: "", batchId: "" });
     router.refresh();
   }
 
@@ -100,6 +103,8 @@ export function CreateSessionButton() {
               <Input value={form.meetingUrl} onChange={(e) => setForm({ ...form, meetingUrl: e.target.value })} placeholder="https://…" />
             </div>
           </div>
+          <BatchSelect value={form.batchId} onChange={(batchId) => setForm({ ...form, batchId })} />
+
           {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   await db.insert(quizzes).values({
     id,
     courseId,
+    batchId: body.batchId || null,
     title: body.title,
     questions: JSON.stringify(questions),
     timeLimit: body.timeLimit ?? 10,
@@ -66,6 +67,7 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = {};
   if (body.title !== undefined) updates.title = body.title;
+  if (body.batchId !== undefined) updates.batchId = body.batchId || null;
   if (body.timeLimit !== undefined) updates.timeLimit = body.timeLimit;
   if (body.passingScore !== undefined) updates.passingScore = body.passingScore;
   if (body.questions !== undefined) {

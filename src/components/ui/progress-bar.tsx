@@ -21,9 +21,9 @@ export function ProgressBar({
           <span className="font-medium text-zinc-200">{Math.round(value)}%</span>
         </div>
       )}
-      <div className={cn("w-full overflow-hidden rounded-full bg-zinc-800", heights[size])}>
+      <div className={cn("w-full overflow-hidden rounded-full bg-[var(--surface-sunk)]", heights[size])}>
         <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400 transition-all duration-500"
+          className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-500"
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         />
       </div>

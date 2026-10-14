@@ -1,12 +1,14 @@
-import { getAllAssignments, getStudentSubmissions } from "@/lib/data";
+import { getAllAssignments, getStudentSubmissions, getUserBatchId } from "@/lib/data";
 import { getSession } from "@/lib/auth";
 import { CreateAssignmentButton } from "@/components/assignments/assignment-actions";
 import { AssignmentItem } from "@/components/assignments/assignment-item";
 
 export default async function AssignmentsPage() {
   const session = await getSession();
-  const allAssignments = await getAllAssignments();
   const isStaff = session?.role === "admin" || session?.role === "trainer";
+  // Students see their own batch's work plus anything left unscoped.
+  const batchId = session && !isStaff ? await getUserBatchId(session.id) : undefined;
+  const allAssignments = await getAllAssignments(batchId);
   const submissions = session?.role === "student" ? await getStudentSubmissions(session.id) : [];
   const submissionByAssignment = new Map(submissions.map((s) => [s.assignmentId, s]));
 
@@ -14,7 +16,6 @@ export default async function AssignmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100">Assignments</h2>
           <p className="text-zinc-400">Track submissions, grades, and feedback</p>
         </div>
         {isStaff && <CreateAssignmentButton />}
@@ -25,7 +26,7 @@ export default async function AssignmentsPage() {
           No assignments yet.
         </p>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {allAssignments.map((assignment) => {
             const sub = submissionByAssignment.get(assignment.id);
             return (

@@ -1,55 +1,402 @@
 @import "tailwindcss";
 
+/*
+ * TechTicks UI palette
+ * --------------------
+ * The app is written with plain Tailwind colour classes (text-zinc-100,
+ * bg-violet-600 …) across ~40 files. Rather than rewrite those, the palettes
+ * themselves are redefined here and re-pointed through `@theme inline`, so
+ * every existing class picks up the new scheme:
+ *
+ *   zinc-*    neutral ramp, INVERTED for a light UI — the `text-zinc-100`
+ *             that used to be near-white on charcoal is now near-black ink on
+ *             paper, and `bg-zinc-950` is the page behind the cards.
+ *   violet-*  the primary blue (buttons, links, active nav).
+ *   emerald / amber / red / sky — status colours, darkened so badge text and
+ *             figures stay legible on white.
+ *
+ * Only colour, radius and shadow change here; no layout or behaviour.
+ */
+
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
-  --card: #18181b;
-  --border: #27272a;
-  --primary: #7c3aed;
-  --primary-foreground: #ffffff;
-  --muted: #71717a;
-  --accent: #a78bfa;
+  color-scheme: light;
+
+  /* neutral ramp, inverted: low numbers = ink, high numbers = paper */
+  --n-50: #0b1118;
+  --n-100: #18212c;
+  --n-200: #2c3744;
+  --n-300: #43505f;
+  --n-400: #5b6676;
+  --n-500: #7a8699;
+  --n-600: #aab4c2;
+  --n-700: #dbe1ea;
+  --n-800: #e8ecf2;
+  --n-900: #ffffff;
+  --n-950: #f4f6fa;
+
+  /* primary — blue */
+  --p-100: #e6eeff;
+  --p-200: #c7dbff;
+  --p-300: #3b82f6;
+  --p-400: #2563eb;
+  --p-500: #2563eb;
+  --p-600: #1d4ed8;
+  --p-700: #1e40af;
+  --p-800: #1e3a8a;
+  --p-900: #172554;
+  --p-950: #0f1c3f;
+
+  --ok-300: #0f9668;
+  --ok-400: #0b7a55;
+  --ok-500: #10b981;
+  --ok-600: #047857;
+
+  --warn-300: #b45309;
+  --warn-400: #a85a08;
+  --warn-500: #f59e0b;
+  --warn-600: #92400e;
+
+  --bad-300: #dc2626;
+  --bad-400: #d32424;
+  --bad-500: #ef4444;
+  --bad-600: #b91c1c;
+
+  --info-300: #0369a1;
+  --info-400: #0b6ba8;
+  --info-500: #0ea5e9;
+  --info-600: #075985;
+
+  /* semantic tokens used by the UI primitives */
+  --page: var(--n-950);
+  --surface: #ffffff;
+  --surface-sunk: #f7f9fc;
+  --line: var(--n-800);
+  --line-strong: var(--n-700);
+  --ink: var(--n-100);
+  --ink-muted: var(--n-500);
+  --accent: var(--p-600);
+  --accent-hover: var(--p-500);
+  --accent-ink: #ffffff;
+  --accent-quiet: color-mix(in srgb, var(--p-500) 10%, transparent);
+  --ring: var(--p-500);
+
+  /* soft, low-contrast elevation — the cards float rather than sit in boxes */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 20px 48px -16px rgb(16 24 40 / 0.22);
+
+  /* pastel tiles for dashboard figures */
+  --tile-mint: #7fd0bb;
+  --tile-mint-ink: #0c3f35;
+  --tile-amber: #f7b23b;
+  --tile-amber-ink: #4a2f03;
+  --tile-blue: #2f6bff;
+  --tile-blue-ink: #ffffff;
+
+  --scrollbar: #cfd7e3;
+}
+
+/*
+ * Night theme. The pre-paint script in the root layout always resolves a
+ * concrete choice (stored preference, else the OS setting) onto
+ * data-theme, so only this one block is needed — no duplicate media query.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --n-50: #f8fafc;
+  --n-100: #e8edf5;
+  --n-200: #cdd5e0;
+  --n-300: #aab4c4;
+  --n-400: #8b95a7;
+  --n-500: #6b7585;
+  --n-600: #4a5465;
+  --n-700: #2e3744;
+  --n-800: #1f2733;
+  --n-900: #161d27;
+  --n-950: #0d1219;
+
+  --p-100: #1b2a45;
+  --p-200: #23385c;
+  --p-300: #93c5fd;
+  --p-400: #60a5fa;
+  --p-500: #3b82f6;
+  --p-600: #2563eb;
+  --p-700: #1d4ed8;
+  --p-800: #1e40af;
+  --p-900: #172554;
+  --p-950: #0f1c3f;
+
+  --ok-300: #6ee7b7;
+  --ok-400: #34d399;
+  --ok-500: #10b981;
+  --ok-600: #059669;
+
+  --warn-300: #fcd34d;
+  --warn-400: #fbbf24;
+  --warn-500: #f59e0b;
+  --warn-600: #d97706;
+
+  --bad-300: #fca5a5;
+  --bad-400: #f87171;
+  --bad-500: #ef4444;
+  --bad-600: #dc2626;
+
+  --info-300: #7dd3fc;
+  --info-400: #38bdf8;
+  --info-500: #0ea5e9;
+  --info-600: #0284c7;
+
+  --page: var(--n-950);
+  --surface: var(--n-900);
+  --surface-sunk: #10161e;
+  --line: var(--n-800);
+  --line-strong: var(--n-700);
+  --ink: var(--n-100);
+  --ink-muted: var(--n-500);
+  --accent: var(--p-600);
+  --accent-hover: var(--p-500);
+  --accent-ink: #ffffff;
+  --accent-quiet: color-mix(in srgb, var(--p-500) 18%, transparent);
+  --ring: var(--p-500);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-pop: 0 20px 48px -16px rgb(0 0 0 / 0.65);
+
+  /* The pastel tiles go deep so white figures stay readable on them. */
+  --tile-mint: #1f5d50;
+  --tile-mint-ink: #d8f5ec;
+  --tile-amber: #7a5410;
+  --tile-amber-ink: #fdf0d5;
+  --tile-blue: #1d4ed8;
+  --tile-blue-ink: #ffffff;
+
+  --scrollbar: #2e3744;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-border: var(--border);
-  --color-primary: var(--primary);
-  --color-muted: var(--muted);
+  --color-background: var(--page);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-border: var(--line);
+  --color-primary: var(--accent);
+  --color-muted: var(--ink-muted);
+
+  --color-zinc-50: var(--n-50);
+  --color-zinc-100: var(--n-100);
+  --color-zinc-200: var(--n-200);
+  --color-zinc-300: var(--n-300);
+  --color-zinc-400: var(--n-400);
+  --color-zinc-500: var(--n-500);
+  --color-zinc-600: var(--n-600);
+  --color-zinc-700: var(--n-700);
+  --color-zinc-800: var(--n-800);
+  --color-zinc-900: var(--n-900);
+  --color-zinc-950: var(--n-950);
+
+  --color-violet-100: var(--p-100);
+  --color-violet-200: var(--p-200);
+  --color-violet-300: var(--p-300);
+  --color-violet-400: var(--p-400);
+  --color-violet-500: var(--p-500);
+  --color-violet-600: var(--p-600);
+  --color-violet-700: var(--p-700);
+  --color-violet-800: var(--p-800);
+  --color-violet-900: var(--p-900);
+  --color-violet-950: var(--p-950);
+
+  --color-emerald-300: var(--ok-300);
+  --color-emerald-400: var(--ok-400);
+  --color-emerald-500: var(--ok-500);
+  --color-emerald-600: var(--ok-600);
+
+  --color-amber-300: var(--warn-300);
+  --color-amber-400: var(--warn-400);
+  --color-amber-500: var(--warn-500);
+  --color-amber-600: var(--warn-600);
+
+  --color-red-300: var(--bad-300);
+  --color-red-400: var(--bad-400);
+  --color-red-500: var(--bad-500);
+  --color-red-600: var(--bad-600);
+
+  --color-sky-300: var(--info-300);
+  --color-sky-400: var(--info-400);
+  --color-sky-500: var(--info-500);
+  --color-sky-600: var(--info-600);
+
+  /* Softer corners throughout — the existing rounded-* classes get rounder. */
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.375rem;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #3f3f46 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
 ::selection {
-  background: rgba(124, 58, 237, 0.3);
+  background: color-mix(in srgb, var(--p-500) 22%, transparent);
 }
 
 .react-flow__node {
   cursor: pointer;
 }
 
+/* An accent word inside a heading — flat colour, no gradient. */
 .gradient-text {
-  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--p-500);
 }
 
 .glass {
-  background: rgba(24, 24, 27, 0.8);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(39, 39, 42, 0.8);
+  border: 1px solid var(--line);
+}
+
+/* Pastel figure tiles, as on the dashboard. */
+.tile-mint {
+  background: var(--tile-mint);
+  color: var(--tile-mint-ink);
+  border-color: transparent;
+}
+.tile-amber {
+  background: var(--tile-amber);
+  color: var(--tile-amber-ink);
+  border-color: transparent;
+}
+.tile-blue {
+  background: var(--tile-blue);
+  color: var(--tile-blue-ink);
+  border-color: transparent;
+}
+.tile-mint *,
+.tile-amber *,
+.tile-blue * {
+  color: inherit !important;
+}
+.tile-mint .opacity-soft,
+.tile-amber .opacity-soft,
+.tile-blue .opacity-soft {
+  opacity: 0.75;
+}
+
+/* Theme toggle: show the icon for the theme you would switch TO, and let the
+   swap animate without React state deciding which icon exists. */
+.theme-icon-sun,
+.theme-icon-moon {
+  transition: transform 0.25s ease, opacity 0.2s ease;
+}
+.theme-icon-moon {
+  position: absolute;
+}
+:root[data-theme="dark"] .theme-icon-moon,
+:root:not([data-theme="dark"]) .theme-icon-sun {
+  opacity: 0;
+  transform: rotate(-60deg) scale(0.5);
+  pointer-events: none;
+}
+:root[data-theme="dark"] .theme-icon-sun,
+:root:not([data-theme="dark"]) .theme-icon-moon {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+
+/* Respect a reduced-motion preference for the sidebar and toggle animations. */
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon-sun,
+  .theme-icon-moon {
+    transition: none;
+  }
+}
+
+/* Confetti for a passed quiz — one keyframe, randomised per ribbon inline. */
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 112vh, 0) rotate(var(--spin, 720deg));
+    opacity: 1;
+  }
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  display: block;
+  will-change: transform;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.45, 1);
+  animation-fill-mode: both;
+  animation-iteration-count: 3;
+}
+
+/* A celebration should never fight an accessibility preference. */
+@media (prefers-reduced-motion: reduce) {
+  .confetti-layer {
+    display: none;
+  }
+}
+
+/* ---- Dashboard hero -------------------------------------------------- */
+/* One artwork per theme, swapped in CSS so there is no flash and nothing to
+   hydrate. */
+:root[data-theme="dark"] .hero-art-light,
+:root:not([data-theme="dark"]) .hero-art-dark {
+  display: none;
+}
+
+/* A brand-tinted card rather than a photo background — the artwork is a figure
+   on the right, not wallpaper, which is what made the banner look busy. */
+.hero-card {
+  background:
+    radial-gradient(120% 140% at 85% 20%, color-mix(in srgb, var(--p-500) 14%, transparent), transparent 60%),
+    linear-gradient(100deg, var(--surface) 55%, color-mix(in srgb, var(--p-500) 10%, var(--surface)) 100%);
+}
+
+.hero-greeting {
+  color: var(--ink);
+}
+.hero-name {
+  color: var(--accent);
+}
+.hero-eyebrow {
+  color: var(--accent);
+}
+.hero-sub {
+  color: var(--ink-muted);
+}
+
+:root[data-theme="dark"] .hero-card {
+  background:
+    radial-gradient(120% 140% at 85% 20%, color-mix(in srgb, var(--p-500) 22%, transparent), transparent 62%),
+    linear-gradient(100deg, var(--surface) 50%, color-mix(in srgb, var(--p-700) 35%, var(--surface)) 100%);
+}
+:root[data-theme="dark"] .hero-name {
+  color: #7fb0ff;
 }

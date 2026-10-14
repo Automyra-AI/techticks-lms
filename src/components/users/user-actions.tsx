@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Plus, Trash2 } from "lucide-react";
 
+export type BatchOption = { id: string; name: string };
+
 type UserForm = {
   id?: string;
   name: string;
   email: string;
   role: string;
+  batchId: string;
   phone: string;
   github: string;
   password?: string;
@@ -22,11 +25,13 @@ function UserFormModal({
   onClose,
   initial,
   mode,
+  batches,
 }: {
   open: boolean;
   onClose: () => void;
   initial: UserForm;
   mode: "create" | "edit";
+  batches: BatchOption[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -82,6 +87,24 @@ function UserFormModal({
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
         </div>
+
+        {form.role === "student" && (
+          <div className="space-y-2">
+            <Label>Batch</Label>
+            <Select value={form.batchId} onChange={(e) => setForm({ ...form, batchId: e.target.value })}>
+              <option value="">— Not assigned —</option>
+              {batches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </Select>
+            <p className="text-xs text-zinc-500">
+              A student only sees sessions, assignments and quizzes for their own batch, plus anything
+              not tied to a batch.
+            </p>
+          </div>
+        )}
         <div className="space-y-2">
           <Label>GitHub</Label>
           <Input value={form.github} onChange={(e) => setForm({ ...form, github: e.target.value })} placeholder="https://github.com/…" />
@@ -102,7 +125,7 @@ function UserFormModal({
   );
 }
 
-export function AddUserButton() {
+export function AddUserButton({ batches = [] }: { batches?: BatchOption[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -114,7 +137,8 @@ export function AddUserButton() {
           open={open}
           onClose={() => setOpen(false)}
           mode="create"
-          initial={{ name: "", email: "", role: "student", phone: "", github: "", password: "" }}
+          batches={batches}
+          initial={{ name: "", email: "", role: "student", batchId: "", phone: "", github: "", password: "" }}
         />
       )}
     </>
@@ -123,8 +147,18 @@ export function AddUserButton() {
 
 export function EditUserButton({
   user,
+  batches = [],
 }: {
-  user: { id: string; name: string; email: string; role: string; phone?: string | null; github?: string | null };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    batchId?: string | null;
+    phone?: string | null;
+    github?: string | null;
+  };
+  batches?: BatchOption[];
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -137,11 +171,13 @@ export function EditUserButton({
           open={open}
           onClose={() => setOpen(false)}
           mode="edit"
+          batches={batches}
           initial={{
             id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
+            batchId: user.batchId ?? "",
             phone: user.phone ?? "",
             github: user.github ?? "",
           }}

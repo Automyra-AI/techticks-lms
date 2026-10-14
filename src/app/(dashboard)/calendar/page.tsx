@@ -1,12 +1,29 @@
-import { getAllSessions, getAllAssignments } from "@/lib/data";
+import {
+  getAllSessions,
+  getAllAssignments,
+  getStudentActivityDays,
+  getUserBatchId,
+  getNow,
+} from "@/lib/data";
+import { getSession } from "@/lib/auth";
+import { StreakCalendar } from "@/components/dashboard/streak-calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { Calendar, Video, ClipboardList } from "lucide-react";
 
 export default async function CalendarPage() {
-  const sessions = await getAllSessions();
-  const assignments = await getAllAssignments();
+  const session = await getSession();
+  const isStudent = session?.role === "student";
+  // Students see their own batch's schedule, not every batch's.
+  const batchId = session && isStudent ? await getUserBatchId(session.id) : undefined;
+
+  const [sessions, assignments, activeDays, now] = await Promise.all([
+    getAllSessions(batchId),
+    getAllAssignments(batchId),
+    session && isStudent ? getStudentActivityDays(session.id) : Promise.resolve(null),
+    getNow(),
+  ]);
 
   const events = [
     ...sessions.map((s) => ({
@@ -24,10 +41,11 @@ export default async function CalendarPage() {
     })),
   ].sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime());
 
+  const upcoming = events.filter((e) => e.date && new Date(e.date).getTime() >= now.ms);
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-zinc-100">Calendar</h2>
         <p className="text-zinc-400">Sessions, assignments, quizzes, and deadlines</p>
       </div>
 
@@ -37,6 +55,11 @@ export default async function CalendarPage() {
             <CardTitle>Upcoming Events</CardTitle>
           </CardHeader>
           <CardContent>
+            {events.length === 0 ? (
+              <p className="py-10 text-center text-sm text-zinc-500">
+                Nothing scheduled yet. Sessions and assignment due dates appear here.
+              </p>
+            ) : (
             <div className="space-y-3">
               {events.map((event) => (
                 <div
@@ -66,32 +89,43 @@ export default async function CalendarPage() {
                 </div>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" /> This Week
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 text-sm">
-              <div className="rounded-lg bg-violet-600/10 p-3">
-                <p className="font-medium text-violet-300">Mon — n8n Introduction</p>
-                <p className="text-xs text-zinc-500">10:00 AM · Zoom</p>
-              </div>
-              <div className="rounded-lg bg-amber-600/10 p-3">
-                <p className="font-medium text-amber-300">Wed — Assignment Due</p>
-                <p className="text-xs text-zinc-500">n8n Workflow Project</p>
-              </div>
-              <div className="rounded-lg bg-violet-600/10 p-3">
-                <p className="font-medium text-violet-300">Fri — Mini Project Session</p>
-                <p className="text-xs text-zinc-500">2:00 PM · Live Coding</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {activeDays ? (
+          <StreakCalendar
+            activeDays={[...activeDays]}
+            todayKey={now.day}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" /> At a glance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-400">Scheduled sessions</dt>
+                  <dd className="font-semibold tabular-nums text-zinc-100">{sessions.length}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-400">Assignments with a due date</dt>
+                  <dd className="font-semibold tabular-nums text-zinc-100">
+                    {assignments.filter((a) => a.dueDate).length}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-zinc-400">Still to come</dt>
+                  <dd className="font-semibold tabular-nums text-zinc-100">{upcoming.length}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        )}
+
       </div>
     </div>
   );
