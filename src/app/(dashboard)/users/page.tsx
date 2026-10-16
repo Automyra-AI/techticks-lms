@@ -2,8 +2,9 @@ import { getUsers, getBatchesWithCounts, getStudentProgressRows } from "@/lib/da
 import { StudentProgressCard } from "@/components/users/student-progress";
 import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { AddUserButton, DeleteUserButton, EditUserButton } from "@/components/users/user-actions";
-import { Mail, GitBranch } from "lucide-react";
+
 
 export default async function UsersPage() {
   const session = await getSession();
@@ -13,7 +14,7 @@ export default async function UsersPage() {
     getStudentProgressRows(),
   ]);
   const batchOptions = batchList.map((b) => ({ id: b.id, name: b.name }));
-  const batchName = new Map(batchList.map((b) => [b.id, b.name]));
+  const staff = allUsers.filter((u) => u.role !== "student");
 
   return (
     <div className="space-y-6">
@@ -28,88 +29,54 @@ export default async function UsersPage() {
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h3 className="font-display text-sm font-bold uppercase tracking-wide text-zinc-400">
-              Student progress
+              Students
             </h3>
             <p className="text-xs text-zinc-500">
-              {studentProgress.length} student{studentProgress.length === 1 ? "" : "s"} · click for detail
+              {studentProgress.length} student{studentProgress.length === 1 ? "" : "s"} · click a card for detail
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {studentProgress.map((s) => (
-              <StudentProgressCard key={s.id} student={s} />
+              <StudentProgressCard
+                key={s.id}
+                student={s}
+                batches={batchOptions}
+                canDelete={session?.role === "admin" && s.id !== session?.id}
+              />
             ))}
           </div>
         </section>
       )}
 
-      <section className="space-y-3">
-        <h3 className="font-display text-sm font-bold uppercase tracking-wide text-zinc-400">
-          All accounts
-        </h3>
-      <div className="overflow-x-auto rounded-xl border border-zinc-800">
-        <table className="w-full">
-          <thead className="bg-zinc-900">
-            <tr className="text-left text-xs text-zinc-500">
-              <th className="p-4 font-medium">Name</th>
-              <th className="p-4 font-medium">Email</th>
-              <th className="p-4 font-medium">Role</th>
-              <th className="p-4 font-medium">Batch</th>
-              <th className="p-4 font-medium">Links</th>
-              <th className="p-4 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {allUsers.map((user) => (
-              <tr key={user.id} className="border-t border-zinc-800">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600/30 text-sm font-bold text-violet-300">
-                      {user.name.charAt(0)}
-                    </div>
-                    <span className="font-medium text-zinc-200">{user.name}</span>
-                  </div>
-                </td>
-                <td className="p-4 text-sm text-zinc-400">
-                  <span className="flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> {user.email}
+      {staff.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-display text-sm font-bold uppercase tracking-wide text-zinc-400">
+            Admins &amp; trainers
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {staff.map((user) => (
+              <Card key={user.id}>
+                <CardContent className="flex items-center gap-3 p-4">
+                  <span className="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-quiet)] text-sm font-bold text-[var(--accent)]">
+                    {user.name.charAt(0).toUpperCase()}
                   </span>
-                </td>
-                <td className="p-4">
-                  <Badge variant={user.role === "admin" ? "info" : user.role === "trainer" ? "warning" : "default"}>
-                    {user.role}
-                  </Badge>
-                </td>
-                <td className="p-4 text-sm">
-                  {user.role === "student" ? (
-                    user.batchId && batchName.has(user.batchId) ? (
-                      <span className="text-zinc-300">{batchName.get(user.batchId)}</span>
-                    ) : (
-                      <span className="text-amber-500">Not assigned</span>
-                    )
-                  ) : (
-                    <span className="text-zinc-600">—</span>
-                  )}
-                </td>
-                <td className="p-4">
-                  {user.github && (
-                    <a href={user.github} className="text-violet-400 hover:underline">
-                      <GitBranch className="h-4 w-4" />
-                    </a>
-                  )}
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center justify-end gap-1">
-                    <EditUserButton user={user} batches={batchOptions} />
-                    {/* No delete control on your own row — the API refuses it anyway. */}
-                    {user.id !== session?.id && <DeleteUserButton user={user} />}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-zinc-100">{user.name}</p>
+                    <p className="truncate text-xs text-zinc-500">{user.email}</p>
                   </div>
-                </td>
-              </tr>
+                  <Badge variant={user.role === "admin" ? "info" : "warning"}>{user.role}</Badge>
+                  <div className="flex shrink-0 items-center">
+                    <EditUserButton user={user} batches={batchOptions} />
+                    {session?.role === "admin" && user.id !== session?.id && (
+                      <DeleteUserButton user={user} />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
-          </tbody>
-        </table>
-      </div>
-      </section>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

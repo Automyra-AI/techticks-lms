@@ -1,5 +1,6 @@
 import { eq, desc, sql } from "drizzle-orm";
 import { formatDistanceToNow } from "date-fns";
+import { cache } from "react";
 import { db } from "./db";
 import {
   users,
@@ -88,6 +89,30 @@ const assignmentFields = {
   hasFile: sql<number>`case when ${assignments.attachmentData} is not null then 1 else 0 end`,
 };
 
+/*
+ * Per-request table loaders.
+ *
+ * Rendering one dashboard used to read `submissions` five separate times —
+ * once each for the stats, the streak, the badges, the certificate and the
+ * activity feed — and `assignments`, `attendance` and `quiz_attempts` three
+ * times apiece. Every one of those is a round trip to a database in another
+ * region.
+ *
+ * React's `cache` memoises for the lifetime of a single request, so each table
+ * is fetched once per render no matter how many functions ask for it. The
+ * tables are small enough (tens to low hundreds of rows) that reading all of
+ * one and filtering in memory beats repeated filtered queries; if any of them
+ * grows into the thousands, move that one back to a filtered query.
+ */
+const loadSubmissions = cache(async () => db.select(submissionFields).from(submissions));
+const loadAssignments = cache(async () => db.select(assignmentFields).from(assignments));
+const loadUsers = cache(async () => db.select().from(users));
+const loadAttendance = cache(async () => db.select().from(attendance));
+const loadQuizAttempts = cache(async () => db.select().from(quizAttempts));
+const loadRoadmapNodes = cache(async () => db.select().from(roadmapNodes));
+const loadEnrollments = cache(async () => db.select().from(enrollments));
+const loadBatches = cache(async () => db.select().from(batches));
+
 /** % attended (present or late) across attendance rows; "—" when there are none. */
 function attendancePercent(rows: { status: string | null }[]): string {
   if (!rows.length) return "—";
@@ -105,12 +130,12 @@ function avgProgress(rows: { progress: number | null }[]): string {
 export async function getAdminStats(): Promise<DashboardStats[]> {
   const [studentRows, courseRows, subRows, enrollRows, sessionRows, attRows, annRows] =
     await Promise.all([
-      db.select().from(users).where(eq(users.role, "student")),
+      loadUsers().then((r) => r.filter((u) => u.role === "student")),
       db.select().from(courses),
-      db.select(submissionFields).from(submissions),
-      db.select().from(enrollments),
+      loadSubmissions(),
+      loadEnrollments(),
       db.select().from(sessions),
-      db.select().from(attendance),
+      loadAttendance(),
       db.select().from(announcements),
     ]);
 
@@ -135,10 +160,10 @@ export async function getTrainerStats(trainerId: string): Promise<DashboardStats
   const courseIds = trainerCourses.map((c) => c.id);
 
   const [allEnrolls, subRows, sessionRows, attRows, annRows] = await Promise.all([
-    db.select().from(enrollments),
-    db.select(submissionFields).from(submissions),
+    loadEnrollments(),
+    loadSubmissions(),
     db.select().from(sessions),
-    db.select().from(attendance),
+    loadAttendance(),
     db.select().from(announcements),
   ]);
 
@@ -159,13 +184,13 @@ export async function getTrainerStats(trainerId: string): Promise<DashboardStats
 }
 
 export async function getStudentStats(userId: string): Promise<DashboardStats[]> {
-  const [enrollment] = await db.select().from(enrollments).where(eq(enrollments.userId, userId)).limit(1);
+  const [enrollment] = (await loadEnrollments()).filter((e) => e.userId === userId);
   const batchId = await getUserBatchId(userId);
   const [userSubmissions, nodeRows, myAttendance, everyAssignment] = await Promise.all([
-    db.select(submissionFields).from(submissions).where(eq(submissions.studentId, userId)),
-    db.select().from(roadmapNodes),
-    db.select().from(attendance).where(eq(attendance.studentId, userId)),
-    db.select(assignmentFields).from(assignments),
+    loadSubmissions().then((r) => r.filter((x) => x.studentId === userId)),
+    loadRoadmapNodes(),
+    loadAttendance().then((r) => r.filter((x) => x.studentId === userId)),
+    loadAssignments(),
   ]);
   // Work from another batch is invisible to this student, so it must not count
   // against them in "due" or towards the certificate.
@@ -226,8 +251,8 @@ export async function getAllCourses() {
 export async function getCoursesWithStats() {
   const [courseRows, enrollRows, nodeRows] = await Promise.all([
     db.select().from(courses),
-    db.select().from(enrollments),
-    db.select().from(roadmapNodes),
+    loadEnrollments(),
+    loadRoadmapNodes(),
   ]);
 
   return courseRows.map((course) => {
@@ -247,7 +272,7 @@ export async function getCoursesWithStats() {
  * from the shared roadmap rather than from anything the student marks.
  */
 export async function getStudentProgressBreakdown(userId: string) {
-  const [enrollment] = await db.select().from(enrollments).where(eq(enrollments.userId, userId)).limit(1);
+  const [enrollment] = (await loadEnrollments()).filter((e) => e.userId === userId);
   const nodeRows = await db.select().from(roadmapNodes).orderBy(roadmapNodes.orderIndex);
 
   const completed = nodeRows.filter((n) => n.status === "completed").length;
@@ -341,8 +366,8 @@ export async function getSubmissionsForGrading() {
       })
       .from(submissions)
       .orderBy(desc(submissions.submittedAt)),
-    db.select().from(users),
-    db.select(assignmentFields).from(assignments),
+    loadUsers(),
+    loadAssignments(),
   ]);
   const userById = new Map(userRows.map((u) => [u.id, u]));
   const assignmentById = new Map(assignmentRows.map((a) => [a.id, a]));
@@ -398,7 +423,7 @@ export async function getWeeks(courseId: string) {
 
 export async function getUsers(role?: "admin" | "trainer" | "student") {
   if (role) {
-    return db.select().from(users).where(eq(users.role, role));
+    return (await loadUsers()).filter((u) => u.role === role);
   }
   return db.select().from(users);
 }
@@ -414,12 +439,12 @@ export async function getUsers(role?: "admin" | "trainer" | "student") {
  */
 export async function getStudentProgressRows() {
   const [userRows, batchRows, subRows, everyAssignment, attRows, attemptRows] = await Promise.all([
-    db.select().from(users).where(eq(users.role, "student")),
-    db.select().from(batches),
-    db.select(submissionFields).from(submissions),
-    db.select(assignmentFields).from(assignments),
-    db.select().from(attendance),
-    db.select().from(quizAttempts),
+    loadUsers().then((r) => r.filter((u) => u.role === "student")),
+    loadBatches(),
+    loadSubmissions(),
+    loadAssignments(),
+    loadAttendance(),
+    loadQuizAttempts(),
   ]);
 
   const batchName = new Map(batchRows.map((b) => [b.id, b.name]));
@@ -449,6 +474,8 @@ export async function getStudentProgressRows() {
         id: u.id,
         name: u.name,
         email: u.email,
+        role: u.role,
+        phone: u.phone,
         batchId: u.batchId,
         batchName: u.batchId ? (batchName.get(u.batchId) ?? null) : null,
         github: u.github,
@@ -478,9 +505,9 @@ export async function getStudentProgressRows() {
  */
 export async function getAssignmentSubmissionStatus() {
   const [everyAssignment, studentRows, subRows] = await Promise.all([
-    db.select(assignmentFields).from(assignments),
-    db.select().from(users).where(eq(users.role, "student")),
-    db.select(submissionFields).from(submissions),
+    loadAssignments(),
+    loadUsers().then((r) => r.filter((u) => u.role === "student")),
+    loadSubmissions(),
   ]);
 
   return everyAssignment.map((a) => {
@@ -520,7 +547,7 @@ export async function getAssignmentSubmissionStatus() {
 }
 
 export async function getUserById(userId: string) {
-  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const user = (await loadUsers()).find((u) => u.id === userId);
   return user ?? null;
 }
 
@@ -529,14 +556,14 @@ export async function getNotifications(userId: string) {
 }
 
 export async function getStudentAttendance(studentId: string) {
-  return db.select().from(attendance).where(eq(attendance.studentId, studentId));
+  return loadAttendance().then((r) => r.filter((x) => x.studentId === studentId));
 }
 
 /** Students enrolled across all courses (id, name, email), for attendance rosters. */
 export async function getEnrolledStudents() {
   const [enrollRows, userRows] = await Promise.all([
-    db.select().from(enrollments),
-    db.select().from(users).where(eq(users.role, "student")),
+    loadEnrollments(),
+    loadUsers().then((r) => r.filter((u) => u.role === "student")),
   ]);
   const enrolledIds = new Set(enrollRows.map((e) => e.userId));
   return userRows
@@ -551,7 +578,7 @@ export async function getEnrolledStudents() {
 export async function getSessionsWithAttendance() {
   const [sessionRows, attRows, students] = await Promise.all([
     db.select().from(sessions).orderBy(desc(sessions.scheduledAt)),
-    db.select().from(attendance),
+    loadAttendance(),
     getEnrolledStudents(),
   ]);
 
@@ -610,8 +637,8 @@ export async function getNow() {
 
 export async function getStudentActivityDays(userId: string) {
   const [subRows, attemptRows] = await Promise.all([
-    db.select(submissionFields).from(submissions).where(eq(submissions.studentId, userId)),
-    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
+    loadSubmissions().then((r) => r.filter((x) => x.studentId === userId)),
+    loadQuizAttempts().then((r) => r.filter((x) => x.studentId === userId)),
   ]);
 
   const day = (iso?: string | null) => (iso ? localDay(iso) : null);
@@ -670,9 +697,9 @@ export type Badge = {
 export async function getStudentBadges(userId: string): Promise<Badge[]> {
   const [progressRows, subRows, attemptRows, nodeRows, streak] = await Promise.all([
     db.select().from(lessonProgress).where(eq(lessonProgress.userId, userId)),
-    db.select(submissionFields).from(submissions).where(eq(submissions.studentId, userId)),
-    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
-    db.select().from(roadmapNodes),
+    loadSubmissions().then((r) => r.filter((x) => x.studentId === userId)),
+    loadQuizAttempts().then((r) => r.filter((x) => x.studentId === userId)),
+    loadRoadmapNodes(),
     getStudentStreak(userId),
   ]);
 
@@ -754,10 +781,10 @@ export async function getStudentBadges(userId: string): Promise<Badge[]> {
 export async function getCertificateProgress(userId: string) {
   const batchId = await getUserBatchId(userId);
   const [attRows, everyAssignment, subRows, attemptRows] = await Promise.all([
-    db.select().from(attendance).where(eq(attendance.studentId, userId)),
-    db.select(assignmentFields).from(assignments),
-    db.select(submissionFields).from(submissions).where(eq(submissions.studentId, userId)),
-    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, userId)),
+    loadAttendance().then((r) => r.filter((x) => x.studentId === userId)),
+    loadAssignments(),
+    loadSubmissions().then((r) => r.filter((x) => x.studentId === userId)),
+    loadQuizAttempts().then((r) => r.filter((x) => x.studentId === userId)),
   ]);
   // Only this student's batch counts — they can't submit work they never see.
   const assignmentRows = everyAssignment.filter((a) => visibleToBatch(a.batchId, batchId));
@@ -821,7 +848,7 @@ export async function getQuizzesForStaff() {
   const [quizRows, attemptRows, userRows] = await Promise.all([
     db.select().from(quizzes).orderBy(desc(quizzes.createdAt)),
     db.select().from(quizAttempts).orderBy(desc(quizAttempts.submittedAt)),
-    db.select().from(users),
+    loadUsers(),
   ]);
   const userById = new Map(userRows.map((u) => [u.id, u]));
   return quizRows.map((q) => {
@@ -859,7 +886,7 @@ export async function getQuizzesForStaff() {
 export async function getQuizzesForStudent(studentId: string) {
   const [allQuizRows, attemptRows, batchId] = await Promise.all([
     db.select().from(quizzes).orderBy(desc(quizzes.createdAt)),
-    db.select().from(quizAttempts).where(eq(quizAttempts.studentId, studentId)),
+    loadQuizAttempts().then((r) => r.filter((x) => x.studentId === studentId)),
     getUserBatchId(studentId),
   ]);
   const quizRows = allQuizRows.filter((q) => visibleToBatch(q.batchId, batchId));
@@ -914,15 +941,20 @@ const rel = (iso?: string | null) =>
 export async function getRecentActivities(user?: { id: string; role: string }) {
   const isStudent = user?.role === "student";
   const [subRows, enrollRows, annRows, userRows, assignmentRows] = await Promise.all([
-    isStudent
-      ? db.select(submissionFields).from(submissions).where(eq(submissions.studentId, user!.id)).orderBy(desc(submissions.submittedAt)).limit(5)
-      : db.select(submissionFields).from(submissions).orderBy(desc(submissions.submittedAt)).limit(5),
+    // Same memoised table as the rest of the page; ordering and the limit move
+    // in-memory so this costs no extra round trip.
+    loadSubmissions().then((rows) =>
+      rows
+        .filter((x) => (isStudent ? x.studentId === user!.id : true))
+        .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""))
+        .slice(0, 5)
+    ),
     isStudent
       ? db.select().from(enrollments).where(eq(enrollments.userId, user!.id)).orderBy(desc(enrollments.enrolledAt)).limit(5)
       : db.select().from(enrollments).orderBy(desc(enrollments.enrolledAt)).limit(5),
     db.select().from(announcements).orderBy(desc(announcements.createdAt)).limit(5),
-    db.select().from(users),
-    db.select(assignmentFields).from(assignments),
+    loadUsers(),
+    loadAssignments(),
   ]);
 
   const userName = (id: string) => userRows.find((u) => u.id === id)?.name ?? "Someone";
@@ -958,9 +990,9 @@ export async function getRecentActivities(user?: { id: string; role: string }) {
 /** Charts derived from real data; empty arrays when there's nothing to show. */
 export async function getChartData() {
   const [studentRows, nodeRows, attRows, sessionRows, weekRows] = await Promise.all([
-    db.select().from(users).where(eq(users.role, "student")),
-    db.select().from(roadmapNodes),
-    db.select().from(attendance),
+    loadUsers().then((r) => r.filter((u) => u.role === "student")),
+    loadRoadmapNodes(),
+    loadAttendance(),
     db.select().from(sessions),
     db.select().from(weeks),
   ]);
@@ -1016,7 +1048,7 @@ export async function getChartData() {
 /** Batches with their student counts, for the management screen. */
 export async function getBatchesWithCounts() {
   const [batchRows, studentRows] = await Promise.all([
-    db.select().from(batches),
+    loadBatches(),
     db.select({ id: users.id, batchId: users.batchId }).from(users).where(eq(users.role, "student")),
   ]);
 
@@ -1042,10 +1074,10 @@ export async function getUnassignedStudentCount() {
  * Content carrying a different batchId is hidden from them; content with no
  * batchId belongs to everyone.
  */
-export async function getUserBatchId(userId: string) {
-  const [row] = await db.select({ batchId: users.batchId }).from(users).where(eq(users.id, userId)).limit(1);
+export const getUserBatchId = cache(async (userId: string) => {
+  const row = (await loadUsers()).find((u) => u.id === userId);
   return row?.batchId ?? null;
-}
+});
 
 /** True when a row scoped to `rowBatchId` should be visible to `batchId`. */
 export function visibleToBatch(rowBatchId: string | null, batchId: string | null) {

@@ -7,12 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import { ClipboardCheck, CalendarCheck, HelpCircle, Award } from "lucide-react";
+import { EditUserButton, DeleteUserButton, type BatchOption } from "@/components/users/user-actions";
 
 export type StudentProgress = {
   id: string;
   name: string;
   email: string;
+  role: string;
+  batchId: string | null;
   batchName: string | null;
+  phone: string | null;
   github: string | null;
   joined: string;
   totalAssignments: number;
@@ -62,9 +66,20 @@ function Stat({
 }
 
 /** One student, with their progress rate and the detail behind it on click. */
-export function StudentProgressCard({ student }: { student: StudentProgress }) {
+export function StudentProgressCard({
+  student,
+  batches,
+  canDelete,
+}: {
+  student: StudentProgress;
+  batches: BatchOption[];
+  canDelete: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const s = student;
+  // Managing the account happens on the card itself, so there is no second
+  // table of the same people underneath.
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
     <>
@@ -108,12 +123,31 @@ export function StudentProgressCard({ student }: { student: StudentProgress }) {
             </p>
           </div>
 
-          <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--line)] pt-3 text-[11px] text-zinc-500">
-            <span>Avg {s.averageScore != null ? `${s.averageScore}%` : "—"}</span>
-            <span>Attendance {s.attendanceRate != null ? `${s.attendanceRate}%` : "—"}</span>
-            <span>
-              Quizzes {s.quizzesPassed}/{s.quizzesTaken}
-            </span>
+          <div className="mt-auto flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500">
+              <span>Avg {s.averageScore != null ? `${s.averageScore}%` : "—"}</span>
+              <span>Attendance {s.attendanceRate != null ? `${s.attendanceRate}%` : "—"}</span>
+              <span>
+                Quizzes {s.quizzesPassed}/{s.quizzesTaken}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center" onClick={stop}>
+              <EditUserButton
+                user={{
+                  id: s.id,
+                  name: s.name,
+                  email: s.email,
+                  role: s.role,
+                  batchId: s.batchId,
+                  phone: s.phone,
+                  github: s.github,
+                }}
+                batches={batches}
+              />
+              {canDelete && (
+                <DeleteUserButton user={{ id: s.id, name: s.name, email: s.email, role: s.role }} />
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
