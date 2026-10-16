@@ -17,7 +17,11 @@ export default async function DashboardPage() {
   const isStudent = session.role === "student";
   const [stats, chartData, activities, progress, streak, badges, certificate] = await Promise.all([
     getDashboardStats(session),
-    getChartData(),
+    // Only staff render charts — fetching this for a student was two extra
+    // table reads whose results were thrown away.
+    isStudent
+      ? Promise.resolve({ studentGrowth: [], courseCompletion: [], weeklyAttendance: [] })
+      : getChartData(),
     getRecentActivities(session),
     isStudent ? getStudentProgressBreakdown(session.id) : Promise.resolve(null),
     isStudent ? getStudentStreak(session.id) : Promise.resolve(null),
