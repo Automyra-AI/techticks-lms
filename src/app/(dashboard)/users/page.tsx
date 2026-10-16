@@ -1,4 +1,5 @@
-import { getUsers, getBatchesWithCounts } from "@/lib/data";
+import { getUsers, getBatchesWithCounts, getStudentProgressRows } from "@/lib/data";
+import { StudentProgressCard } from "@/components/users/student-progress";
 import { getSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { AddUserButton, DeleteUserButton, EditUserButton } from "@/components/users/user-actions";
@@ -6,7 +7,11 @@ import { Mail, GitBranch } from "lucide-react";
 
 export default async function UsersPage() {
   const session = await getSession();
-  const [allUsers, batchList] = await Promise.all([getUsers(), getBatchesWithCounts()]);
+  const [allUsers, batchList, studentProgress] = await Promise.all([
+    getUsers(),
+    getBatchesWithCounts(),
+    getStudentProgressRows(),
+  ]);
   const batchOptions = batchList.map((b) => ({ id: b.id, name: b.name }));
   const batchName = new Map(batchList.map((b) => [b.id, b.name]));
 
@@ -19,6 +24,28 @@ export default async function UsersPage() {
         <AddUserButton batches={batchOptions} />
       </div>
 
+      {studentProgress.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <h3 className="font-display text-sm font-bold uppercase tracking-wide text-zinc-400">
+              Student progress
+            </h3>
+            <p className="text-xs text-zinc-500">
+              {studentProgress.length} student{studentProgress.length === 1 ? "" : "s"} · click for detail
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {studentProgress.map((s) => (
+              <StudentProgressCard key={s.id} student={s} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <h3 className="font-display text-sm font-bold uppercase tracking-wide text-zinc-400">
+          All accounts
+        </h3>
       <div className="overflow-x-auto rounded-xl border border-zinc-800">
         <table className="w-full">
           <thead className="bg-zinc-900">
@@ -82,6 +109,7 @@ export default async function UsersPage() {
           </tbody>
         </table>
       </div>
+      </section>
     </div>
   );
 }

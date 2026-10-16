@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { formatDate } from "@/lib/utils";
 import { Calendar, FileText, ExternalLink } from "lucide-react";
+import { SubmissionStatusButton, type SubmissionStatus } from "@/components/assignments/submission-status";
 import {
   EditAssignmentButton,
   DeleteAssignmentButton,
@@ -31,9 +32,11 @@ export function AssignmentItem({
   assignment,
   role,
   submission,
+  submissionStatus,
 }: {
   assignment: AssignmentItemData;
   role?: string;
+  submissionStatus?: SubmissionStatus;
   submission?: {
     status?: string | null;
     marks?: number | null;
@@ -89,6 +92,7 @@ export function AssignmentItem({
           {fullMarks && " · full marks"}
         </span>
       )}
+      {isStaff && submissionStatus && <SubmissionStatusButton status={submissionStatus} />}
       {submission?.updatedAt ? (
         <span className="text-zinc-400">Updated {formatDate(submission.updatedAt)}</span>
       ) : submission?.submittedAt ? (

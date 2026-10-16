@@ -1,4 +1,9 @@
-import { getAllAssignments, getStudentSubmissions, getUserBatchId } from "@/lib/data";
+import {
+  getAllAssignments,
+  getStudentSubmissions,
+  getUserBatchId,
+  getAssignmentSubmissionStatus,
+} from "@/lib/data";
 import { getSession } from "@/lib/auth";
 import { CreateAssignmentButton } from "@/components/assignments/assignment-actions";
 import { AssignmentItem } from "@/components/assignments/assignment-item";
@@ -9,6 +14,9 @@ export default async function AssignmentsPage() {
   // Students see their own batch's work plus anything left unscoped.
   const batchId = session && !isStaff ? await getUserBatchId(session.id) : undefined;
   const allAssignments = await getAllAssignments(batchId);
+  // Only staff need to know who has handed in.
+  const statuses = isStaff ? await getAssignmentSubmissionStatus() : [];
+  const statusById = new Map(statuses.map((x) => [x.assignmentId, x]));
   const submissions = session?.role === "student" ? await getStudentSubmissions(session.id) : [];
   const submissionByAssignment = new Map(submissions.map((s) => [s.assignmentId, s]));
 
@@ -33,6 +41,7 @@ export default async function AssignmentsPage() {
               <AssignmentItem
                 key={assignment.id}
                 role={session?.role}
+                submissionStatus={statusById.get(assignment.id)}
                 assignment={{
                   id: assignment.id,
                   title: assignment.title,

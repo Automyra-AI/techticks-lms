@@ -7,7 +7,25 @@ import { getSession } from "@/lib/auth";
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const all = await db.select().from(assignments).orderBy(desc(assignments.createdAt));
+  // Leave attachment_data in the database — this list never shows the bytes,
+  // and shipping them makes the response hundreds of KB larger than it needs.
+  const all = await db
+    .select({
+      id: assignments.id,
+      courseId: assignments.courseId,
+      batchId: assignments.batchId,
+      title: assignments.title,
+      description: assignments.description,
+      dueDate: assignments.dueDate,
+      maxMarks: assignments.maxMarks,
+      difficulty: assignments.difficulty,
+      submissionFormat: assignments.submissionFormat,
+      attachmentUrl: assignments.attachmentUrl,
+      attachmentName: assignments.attachmentName,
+      createdAt: assignments.createdAt,
+    })
+    .from(assignments)
+    .orderBy(desc(assignments.createdAt));
   return NextResponse.json({ assignments: all });
 }
 

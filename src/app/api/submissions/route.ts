@@ -95,7 +95,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not submit. Please try again." }, { status: 500 });
   }
 
-  const [submission] = await db.select().from(submissions).where(eq(submissions.id, id));
+  const [submission] = await db
+    .select({
+      id: submissions.id,
+      assignmentId: submissions.assignmentId,
+      studentId: submissions.studentId,
+      content: submissions.content,
+      fileName: submissions.fileName,
+      driveUrl: submissions.driveUrl,
+      githubUrl: submissions.githubUrl,
+      status: submissions.status,
+      marks: submissions.marks,
+      feedback: submissions.feedback,
+      submittedAt: submissions.submittedAt,
+      updatedAt: submissions.updatedAt,
+    })
+    .from(submissions)
+    .where(eq(submissions.id, id));
   return NextResponse.json({ submission, updated: Boolean(existing) });
 }
 
