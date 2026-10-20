@@ -18,6 +18,7 @@ import {
   BarChart3,
   Users,
   Layers,
+  Presentation,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -48,6 +49,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BarChart3,
   Users,
   Layers,
+  Presentation,
   Settings,
   HelpCircle,
 };

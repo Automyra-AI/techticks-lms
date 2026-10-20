@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     scheduledAt: body.scheduledAt || null,
     duration: body.duration ?? 90,
     meetingPlatform: body.meetingPlatform || null,
+    location: body.location || null,
     meetingUrl: body.meetingUrl || null,
   });
 

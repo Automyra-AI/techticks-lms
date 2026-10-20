@@ -18,6 +18,9 @@ import {
   weeklyRemarks,
   lessonProgress,
   batches,
+  presentations,
+  presentationGroups,
+  presentationMembers,
   quizzes,
   quizAttempts,
 } from "./db/schema";
@@ -544,6 +547,76 @@ export async function getAssignmentSubmissionStatus() {
       missing,
     };
   });
+}
+
+/**
+ * Presentation rounds with their groups and members.
+ *
+ * `forStudent` narrows to rounds that student can see — their batch, or an
+ * unscoped one — which is what the student portal renders.
+ */
+export async function getPresentations(forStudent?: { id: string; batchId: string | null }) {
+  const [rounds, groups, members, studentRows] = await Promise.all([
+    db.select().from(presentations),
+    db.select().from(presentationGroups),
+    db.select().from(presentationMembers),
+    loadUsers().then((r) => r.filter((u) => u.role === "student")),
+  ]);
+
+  const studentById = new Map(studentRows.map((u) => [u.id, u]));
+
+  const visible = forStudent
+    ? rounds.filter((p) => visibleToBatch(p.batchId, forStudent.batchId))
+    : rounds;
+
+  return visible
+    .map((round) => {
+      const roundGroups = groups
+        .filter((g) => g.presentationId === round.id)
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+        .map((g) => ({
+          id: g.id,
+          name: g.name,
+          topic: g.topic,
+          notes: g.notes,
+          members: members
+            .filter((m) => m.groupId === g.id)
+            .map((m) => {
+              const u = studentById.get(m.studentId);
+              return { id: m.studentId, name: u?.name ?? "Student", email: u?.email ?? "" };
+            }),
+        }));
+
+      const assigned = new Set(roundGroups.flatMap((g) => g.members.map((m) => m.id)));
+      // Who in this round's batch has not been placed in a group yet.
+      const unassigned = studentRows
+        .filter((u) => visibleToBatch(round.batchId, u.batchId) && !assigned.has(u.id))
+        .map((u) => ({ id: u.id, name: u.name, email: u.email }));
+
+      return {
+        id: round.id,
+        title: round.title,
+        description: round.description,
+        mode: round.mode ?? "group",
+        batchId: round.batchId,
+        scheduledAt: round.scheduledAt,
+        groups: roundGroups,
+        unassigned,
+        // For the student portal: the slot this student is in, if any.
+        mine: forStudent
+          ? (roundGroups.find((g) => g.members.some((m) => m.id === forStudent.id)) ?? null)
+          : null,
+      };
+    })
+    .sort((a, b) => (b.scheduledAt ?? "").localeCompare(a.scheduledAt ?? ""));
+}
+
+/** Students eligible for a round — those in its batch, or everyone if unscoped. */
+export async function getStudentsForBatch(batchId: string | null) {
+  const studentRows = await loadUsers().then((r) => r.filter((u) => u.role === "student"));
+  return studentRows
+    .filter((u) => visibleToBatch(batchId, u.batchId))
+    .map((u) => ({ id: u.id, name: u.name, email: u.email }));
 }
 
 export async function getUserById(userId: string) {

@@ -25,8 +25,10 @@ export function CreateSessionButton() {
     date: "",
     time: "",
     duration: "90",
-    meetingPlatform: "zoom",
+    // The bootcamp runs in person, so that is the sensible default.
+    meetingPlatform: "onsite",
     meetingUrl: "",
+    location: "",
     batchId: "",
   });
 
@@ -56,7 +58,7 @@ export function CreateSessionButton() {
       return;
     }
     setOpen(false);
-    setForm({ title: "", description: "", date: "", time: "", duration: "90", meetingPlatform: "zoom", meetingUrl: "", batchId: "" });
+    setForm({ title: "", description: "", date: "", time: "", duration: "90", meetingPlatform: "onsite", meetingUrl: "", location: "", batchId: "" });
     router.refresh();
   }
 
@@ -93,14 +95,33 @@ export function CreateSessionButton() {
             <div className="space-y-2">
               <Label>Platform</Label>
               <Select value={form.meetingPlatform} onChange={(e) => setForm({ ...form, meetingPlatform: e.target.value })}>
+                <option value="onsite">Onsite (in person)</option>
                 <option value="zoom">Zoom</option>
                 <option value="google_meet">Google Meet</option>
                 <option value="teams">Teams</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Meeting Link</Label>
-              <Input value={form.meetingUrl} onChange={(e) => setForm({ ...form, meetingUrl: e.target.value })} placeholder="https://…" />
+              {/* An onsite class has a room, not a link. */}
+              {form.meetingPlatform === "onsite" ? (
+                <>
+                  <Label>Location</Label>
+                  <Input
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    placeholder="Lab 2, 3rd floor"
+                  />
+                </>
+              ) : (
+                <>
+                  <Label>Meeting Link</Label>
+                  <Input
+                    value={form.meetingUrl}
+                    onChange={(e) => setForm({ ...form, meetingUrl: e.target.value })}
+                    placeholder="https://…"
+                  />
+                </>
+              )}
             </div>
           </div>
           <BatchSelect value={form.batchId} onChange={(batchId) => setForm({ ...form, batchId })} />

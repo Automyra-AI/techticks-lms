@@ -85,7 +85,9 @@ export const sessions = sqliteTable("sessions", {
   videoUrl: text("video_url"),
   slidesUrl: text("slides_url"),
   meetingUrl: text("meeting_url"),
-  meetingPlatform: text("meeting_platform", { enum: ["zoom", "google_meet", "teams"] }),
+  // The bootcamp runs onsite, so a session is not necessarily a meeting link.
+  meetingPlatform: text("meeting_platform", { enum: ["onsite", "zoom", "google_meet", "teams"] }),
+  location: text("location"),
   scheduledAt: text("scheduled_at"),
   duration: integer("duration"),
   recordingUrl: text("recording_url"),
@@ -141,6 +143,41 @@ export const submissions = sqliteTable("submissions", {
 }, (t) => [
   uniqueIndex("submissions_assignment_student_unique").on(t.assignmentId, t.studentId),
 ]);
+
+/**
+ * A presentation round — "Week 5 Presentations".
+ *
+ * `mode` decides how topics are handed out: one topic per group, or one topic
+ * per student. Both shapes use the same tables below; an individual slot is
+ * simply a group with a single member, which keeps the queries and the UI from
+ * forking in two.
+ */
+export const presentations = sqliteTable("presentations", {
+  id: text("id").primaryKey(),
+  courseId: text("course_id").references(() => courses.id).notNull(),
+  batchId: text("batch_id"),
+  title: text("title").notNull(),
+  description: text("description"),
+  mode: text("mode", { enum: ["group", "individual"] }).notNull().default("group"),
+  scheduledAt: text("scheduled_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+/** A group (or a single-student slot) with the topic it presents. */
+export const presentationGroups = sqliteTable("presentation_groups", {
+  id: text("id").primaryKey(),
+  presentationId: text("presentation_id").references(() => presentations.id).notNull(),
+  name: text("name").notNull(),
+  topic: text("topic"),
+  notes: text("notes"),
+  orderIndex: integer("order_index").notNull().default(0),
+});
+
+export const presentationMembers = sqliteTable("presentation_members", {
+  id: text("id").primaryKey(),
+  groupId: text("group_id").references(() => presentationGroups.id).notNull(),
+  studentId: text("student_id").references(() => users.id).notNull(),
+});
 
 export const attendance = sqliteTable("attendance", {
   id: text("id").primaryKey(),
@@ -251,3 +288,5 @@ export type RoadmapNode = typeof roadmapNodes.$inferSelect;
 export type Assignment = typeof assignments.$inferSelect;
 export type Submission = typeof submissions.$inferSelect;
 export type Batch = typeof batches.$inferSelect;
+export type Presentation = typeof presentations.$inferSelect;
+export type PresentationGroup = typeof presentationGroups.$inferSelect;
