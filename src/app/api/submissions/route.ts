@@ -15,13 +15,6 @@ export async function POST(request: Request) {
   if (!body.assignmentId) {
     return NextResponse.json({ error: "assignmentId is required" }, { status: 400 });
   }
-  if (!body.githubUrl && !body.content && !body.driveUrl && !body.fileData) {
-    return NextResponse.json(
-      { error: "Upload a file, paste a link, or add notes" },
-      { status: 400 }
-    );
-  }
-
   // Guard against a stale session (e.g. after a DB reset) whose user no longer
   // exists — that would fail the studentId foreign key with a cryptic 500.
   const [student] = await db.select().from(users).where(eq(users.id, session.id)).limit(1);
@@ -46,6 +39,18 @@ export async function POST(request: Request) {
       )
     )
     .limit(1);
+
+  // A submission must carry something — but a file already on record counts.
+  // Checking this before loading `existing` rejected a student who was asked to
+  // revise: their upload is still attached and the form shows it, yet the
+  // request carries no file bytes, so the work looked empty to the server.
+  const keepsExistingFile = Boolean(existing?.fileData);
+  if (!body.githubUrl && !body.content && !body.driveUrl && !body.fileData && !keepsExistingFile) {
+    return NextResponse.json(
+      { error: "Upload a file, paste a link, or add notes" },
+      { status: 400 }
+    );
+  }
 
   const text = (value: unknown) => {
     const trimmed = typeof value === "string" ? value.trim() : "";
