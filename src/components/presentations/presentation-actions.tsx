@@ -33,11 +33,14 @@ function RoundModal({
   onClose,
   initial,
   mode,
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   initial: RoundForm;
   mode: "create" | "edit";
+  /** Lets the caller carry straight on into forming the first group. */
+  onCreated?: (round: { id: string; mode: string }) => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -53,14 +56,17 @@ function RoundModal({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
+    const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Failed to save");
       return;
     }
     onClose();
     router.refresh();
+    if (mode === "create" && data.presentation) {
+      onCreated?.({ id: data.presentation.id, mode: data.presentation.mode ?? form.mode });
+    }
   }
 
   return (
@@ -110,6 +116,12 @@ function RoundModal({
 
         <BatchSelect value={form.batchId} onChange={(batchId) => setForm({ ...form, batchId })} />
 
+        <p className="rounded-lg border border-[var(--line)] bg-[var(--surface-sunk)] p-3 text-xs text-zinc-400">
+          {form.mode === "group"
+            ? "Next you'll pick which students go in each group and give every group its topic."
+            : "Next you'll pick each student and give them their topic."}
+        </p>
+
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
@@ -124,8 +136,11 @@ function RoundModal({
   );
 }
 
-export function CreatePresentationButton() {
+export function CreatePresentationButton({ students }: { students: Student[] }) {
   const [open, setOpen] = useState(false);
+  // Creating a round and filling it is one job, so the second step opens itself.
+  const [building, setBuilding] = useState<{ id: string; mode: string } | null>(null);
+
   return (
     <>
       <Button onClick={() => setOpen(true)}>
@@ -137,6 +152,16 @@ export function CreatePresentationButton() {
           onClose={() => setOpen(false)}
           mode="create"
           initial={{ title: "", description: "", mode: "group", batchId: "", scheduledAt: "" }}
+          onCreated={(round) => setBuilding(round)}
+        />
+      )}
+      {building && (
+        <GroupModal
+          presentationId={building.id}
+          mode={building.mode}
+          students={students}
+          open={Boolean(building)}
+          onClose={() => setBuilding(null)}
         />
       )}
     </>
@@ -209,6 +234,7 @@ export function GroupModal({
   mode,
   students,
   group,
+  taken,
   open,
   onClose,
 }: {
@@ -216,6 +242,8 @@ export function GroupModal({
   mode: string;
   students: Student[];
   group?: GroupData;
+  /** studentId → the group they are already in, for this round. */
+  taken?: Record<string, string>;
   open: boolean;
   onClose: () => void;
 }) {
@@ -264,44 +292,47 @@ export function GroupModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={group ? "Edit slot" : isIndividual ? "Assign a topic" : "New group"}
-      description={isIndividual ? "One student, one topic" : "Pick the members and their topic"}
+      title={group ? "Edit group" : isIndividual ? "Assign a topic" : "Form a group"}
+      description={
+        isIndividual
+          ? "Pick the student, then give them a topic"
+          : "Pick who is in the group, then give the group its topic"
+      }
     >
       <div className="space-y-4">
-        {!isIndividual && (
-          <div className="space-y-2">
-            <Label>Group name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group A" />
+        {/* Step 1 — who presents. This is the part that forms the group the
+            students will see in their portal. */}
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <Label>{isIndividual ? "1 · Student" : `1 · Members`}</Label>
+            {!isIndividual && (
+              <span className="text-xs text-zinc-500">{picked.length} selected</span>
+            )}
           </div>
-        )}
 
-        <div className="space-y-2">
-          <Label>Topic</Label>
-          <Input
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Building a WhatsApp support bot"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>{isIndividual ? "Student" : `Members (${picked.length} selected)`}</Label>
           {students.length === 0 ? (
-            <p className="text-sm text-zinc-500">No students in this batch yet.</p>
+            <p className="rounded-lg border border-[var(--line)] p-4 text-sm text-zinc-500">
+              No students in this batch yet.
+            </p>
           ) : (
-            <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+            <div className="max-h-56 space-y-1.5 overflow-y-auto rounded-lg border border-[var(--line)] p-2">
               {students.map((s) => {
                 const on = picked.includes(s.id);
+                const takenBy = taken?.[s.id];
+                const unavailable = Boolean(takenBy) && !on;
                 return (
                   <button
                     key={s.id}
                     type="button"
+                    disabled={unavailable}
                     onClick={() => toggle(s.id)}
                     className={cn(
                       "flex w-full items-center gap-2.5 rounded-lg border p-2.5 text-left transition-colors",
                       on
                         ? "border-[var(--accent)] bg-[var(--accent-quiet)]"
-                        : "border-[var(--line)] hover:bg-[var(--surface-sunk)]"
+                        : unavailable
+                          ? "cursor-not-allowed border-[var(--line)] opacity-50"
+                          : "border-[var(--line)] hover:bg-[var(--surface-sunk)]"
                     )}
                   >
                     <span
@@ -314,9 +345,12 @@ export function GroupModal({
                     >
                       ✓
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-zinc-200">{s.name}</span>
-                      <span className="block truncate text-[11px] text-zinc-500">{s.email}</span>
+                      <span className="block truncate text-[11px] text-zinc-500">
+                        {/* Say where a student already is, rather than just greying them out. */}
+                        {unavailable ? `Already in ${takenBy}` : s.email}
+                      </span>
                     </span>
                   </button>
                 );
@@ -325,13 +359,33 @@ export function GroupModal({
           )}
         </div>
 
+        {!isIndividual && (
+          <div className="space-y-2">
+            <Label>2 · Group name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group A" />
+          </div>
+        )}
+
+        {/* Step 2/3 — the topic this group presents. */}
+        <div className="space-y-2">
+          <Label>{isIndividual ? "2 · Topic" : "3 · Topic"}</Label>
+          <Input
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Building a WhatsApp support bot"
+          />
+          <p className="text-xs text-zinc-500">
+            This is what {isIndividual ? "the student sees" : "the group sees"} in their portal.
+          </p>
+        </div>
+
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button type="button" onClick={save} disabled={busy || picked.length === 0}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? "Saving…" : group ? "Save" : isIndividual ? "Assign topic" : "Create group"}
           </Button>
         </div>
       </div>
@@ -355,6 +409,12 @@ export function GroupManager({
   const [open, setOpen] = useState(false);
   const isIndividual = mode === "individual";
 
+  // Which group each student is already in, so the picker can say so instead
+  // of silently letting you double-book someone.
+  const taken: Record<string, string> = {};
+  for (const g of groups) for (const m of g.members) taken[m.id] = g.name;
+  const unplaced = students.filter((s) => !taken[s.id]);
+
   async function removeGroup(id: string) {
     await fetch(`/api/presentations/groups?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     router.refresh();
@@ -369,6 +429,7 @@ export function GroupManager({
         <Button
           size="sm"
           variant="secondary"
+          disabled={unplaced.length === 0}
           onClick={() => {
             setEditing(undefined);
             setOpen(true);
@@ -377,6 +438,17 @@ export function GroupManager({
           <Plus className="h-3.5 w-3.5" /> {isIndividual ? "Assign topic" : "Add group"}
         </Button>
       </div>
+
+      {unplaced.length > 0 ? (
+        <p className="text-xs text-zinc-500">
+          <span className="font-medium text-amber-500">{unplaced.length}</span> still to place:{" "}
+          {unplaced.map((s) => s.name).join(", ")}
+        </p>
+      ) : (
+        students.length > 0 && (
+          <p className="text-xs text-emerald-500">Everyone has been placed.</p>
+        )
+      )}
 
       {groups.length === 0 ? (
         <p className="rounded-lg border border-dashed border-[var(--line)] p-6 text-center text-sm text-zinc-500">
@@ -437,6 +509,7 @@ export function GroupManager({
           mode={mode}
           students={students}
           group={editing}
+          taken={taken}
           open={open}
           onClose={() => setOpen(false)}
         />

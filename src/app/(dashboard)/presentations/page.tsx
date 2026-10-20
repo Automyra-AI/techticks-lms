@@ -22,6 +22,9 @@ export default async function PresentationsPage() {
     isStaff ? undefined : { id: session.id, batchId }
   );
 
+  // A new round has no batch chosen yet, so the create flow offers everyone.
+  const allStudents = isStaff ? await getStudentsForBatch(null) : [];
+
   // Staff need the eligible roster per round to fill groups from.
   const rosters = isStaff
     ? Object.fromEntries(
@@ -39,7 +42,7 @@ export default async function PresentationsPage() {
             ? "Assign presentation topics to groups or to individual students"
             : "Your presentation topics and who you are presenting with"}
         </p>
-        {isStaff && <CreatePresentationButton />}
+        {isStaff && <CreatePresentationButton students={allStudents} />}
       </div>
 
       {rounds.length === 0 ? (
